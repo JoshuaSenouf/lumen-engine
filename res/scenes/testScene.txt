@@ -1,0 +1,3 @@
+SPHERE:redSphere;2;(0,0,0);(255,0,0);(0,0,0);DIFFUSE;
+MODEL:floor;(0,0,0);(255,0,0);(0,0,0);DIFFUSE;
+SPHERE:blueSphere;3;(0,1,2);(0,0,255);(0,0,0);REFLECT;

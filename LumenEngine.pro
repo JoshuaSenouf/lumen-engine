@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui opengl
+QT += core gui opengl
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
@@ -13,13 +13,17 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    GUI.cpp
+        src/interface/GUI.cpp \
+    src/scene/sceneParser.cpp
 
-HEADERS  += \
-        renderKernel.h \
-    GUI.h
+HEADERS += \
+        src/cuda/renderKernel.h \
+        src/interface/GUI.h \
+    src/scene/sceneParser.h
 
 LIBS += -lGL -lGLEW -lGLU -lglut
+
+QMAKE_CXXFLAGS += -std=c++11 -O3
 
 
 ## CUDA setup ##
@@ -28,10 +32,10 @@ GENCODE = arch=compute_52,code=sm_52
 
 DEFINES += NOMINMAX
 
-CUDA_SOURCES = "$$PWD"/renderKernel.cu
+CUDA_SOURCES = "$$PWD"/src/cuda/renderKernel.cu
 
-SOURCES += renderKernel.cu
-SOURCES -= renderKernel.cu
+SOURCES += src/cuda/renderKernel.cu
+SOURCES -= src/cuda/renderKernel.cu
 
 CUDA_DIR = /usr/local/cuda
 CUDA_SDK = /usr/local/cuda/samples

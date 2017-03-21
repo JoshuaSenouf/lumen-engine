@@ -2,6 +2,7 @@
 #define GUI_H
 
 #include <QtWidgets>
+#include "src/cuda/renderKernel.h"
 
 
 class GUI : public QWidget

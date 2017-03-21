@@ -1,5 +1,4 @@
-#include "GUI.h"
-#include "renderKernel.h"
+#include "src/interface/GUI.h"
 
 
 GUI::GUI(QWidget *parent) : QWidget(parent)
