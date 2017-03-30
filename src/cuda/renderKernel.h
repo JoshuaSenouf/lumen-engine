@@ -2,7 +2,10 @@
 #define RENDERKERNEL_H
 
 
-void lumenRender(int width, int height, int samples, int bounces);
+struct SphereObject;
+
+
+void lumenRender(int width, int height, int samples, int bounces, int sphereCount, SphereObject* spheres);
 
 
 #endif // RENDERKERNEL_H

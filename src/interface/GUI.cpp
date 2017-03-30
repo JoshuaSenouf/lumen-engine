@@ -25,6 +25,8 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
 
     logFile = new QFile("renderLog.txt");
 
+    renderer = new cudaRenderer();
+
     //------------------------------------------------------------------------------------
     //----------------------------- Widgets configuration  -------------------------------
     //------------------------------------------------------------------------------------
@@ -40,7 +42,7 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
     if (logFile->open(QIODevice::ReadWrite))
     {
         QTextStream logSetup(logFile);
-        logSetup << "//////////////////////" << endl;
+        logSetup << "//////////////////////\n" << endl;
         logFile->close();
     }
 
@@ -80,7 +82,7 @@ void GUI::callCudaRender()
 {
     std::freopen("renderLog.txt", "a+", stdout);
 
-    lumenRender(widthEdit->text().toInt(), heightEdit->text().toInt(), samplesEdit->text().toInt(), bouncesEdit->text().toInt());
+    renderer->render(widthEdit->text().toInt(), heightEdit->text().toInt(), samplesEdit->text().toInt(), bouncesEdit->text().toInt());
 
     std::fclose(stdout);
 

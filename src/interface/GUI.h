@@ -3,6 +3,7 @@
 
 #include <QtWidgets>
 #include "src/cuda/renderKernel.h"
+#include "src/cuda/cudaRenderer.h"
 
 
 class GUI : public QWidget
@@ -34,6 +35,8 @@ class GUI : public QWidget
         QTextEdit *logText;
 
         QFile *logFile;
+
+        cudaRenderer *renderer;
 };
 
 

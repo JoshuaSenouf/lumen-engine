@@ -14,12 +14,14 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
         src/interface/GUI.cpp \
-    src/scene/sceneParser.cpp
+    src/scene/sceneParser.cpp \
+    src/cuda/cudaRenderer.cpp
 
 HEADERS += \
         src/cuda/renderKernel.h \
         src/interface/GUI.h \
-    src/scene/sceneParser.h
+    src/scene/sceneParser.h \
+    src/cuda/cudaRenderer.h
 
 LIBS += -lGL -lGLEW -lGLU -lglut
 

@@ -1,4 +1,5 @@
 #include "src/scene/sceneParser.h"
+#include "src/cuda/cudaRenderer.h"
 
 
 sceneParser::sceneParser()
@@ -6,42 +7,83 @@ sceneParser::sceneParser()
 
 }
 
-void sceneParser::loadScene(const char* scenePath)
+
+std::tuple<SphereObject*, int> sceneParser::loadScene(const char* scenePath, SphereObject *spheres)
 {
+    SphereObject tempSphere;
+
+    int sphereCount = 0;
+
     std::ifstream sceneReader(scenePath);
-    std::string currentLine;
-    std::string objName, objType, radius, position, color, emissiveColor, materialType;
+    std::string currentLine, objType, tempString;
 
     while(getline(sceneReader, currentLine))
     {
-        if(!currentLine.empty())
+        if(!currentLine.empty() && !(currentLine[0] == '#'))
         {
             std::stringstream iss(currentLine);
 
-            getline(iss, objType, ':');
-            getline(iss, objName, ';');
+            getline(iss, objType, ';');
 
-            if(objType == "SPHERE")
-            {
-                getline(iss, radius, ';');
-            }
+            getline(iss, tempString, ';');
+            tempSphere.radius = std::stof(tempString);
 
-            getline(iss, position, ';');
-            getline(iss, color, ';');
-            getline(iss, emissiveColor, ';');
-            getline(iss, materialType, ';');
+            getline(iss, tempString, ';');
+            tempSphere.position = stringToFloat3(purgeString(tempString));
 
-            std::cout << "OBJECT TYPE : " << objType << std::endl;
-            std::cout << "OBJECT NAME : " << objName << std::endl;
-            if(objType == "SPHERE")
-                std::cout << "RADIUS : " << radius << std::endl;
-            std::cout << "POSITION : " << position << std::endl;
-            std::cout << "COLOR : " << color << std::endl;
-            std::cout << "EMISSIVE COLOR : " << emissiveColor << std::endl;
-            std::cout << "MATERIAL TYPE : " << materialType << std::endl;
-            std::cout << "=================" << std::endl;
+            getline(iss, tempString, ';');
+            tempSphere.color = stringToFloat3(purgeString(tempString));
+
+            getline(iss, tempString, ';');
+            tempSphere.emissiveColor = stringToFloat3(purgeString(tempString));
+
+            getline(iss, tempString, ';');
+            tempSphere.material = static_cast<materialType>(std::stoi(tempString));
+
+            spheres[sphereCount] = tempSphere;
+            sphereCount++;
+            spheres = (SphereObject*)realloc(spheres, sizeof(SphereObject) * (sphereCount + 1));
         }
     }
 
     sceneReader.close();
+
+    return std::tuple<SphereObject*, int>(spheres, sphereCount);
+}
+
+
+std::string sceneParser::purgeString(std::string bloatedString)
+{
+    char badChars[] = "()";
+
+    for (unsigned int i = 0; i < strlen(badChars); ++i)
+    {
+       bloatedString.erase(std::remove(bloatedString.begin(), bloatedString.end(), badChars[i]), bloatedString.end());
+    }
+
+    return bloatedString;
+}
+
+
+float3 sceneParser::stringToFloat3(std::string vecString)
+{
+    int componentCount = 0;
+
+    char vecComponents[3];
+
+    std::ifstream vecReader(vecString);
+    std::string currentValue;
+    float3 cleanVec;
+
+    while(getline(vecReader, currentValue, ','))
+    {
+        vecComponents[componentCount] = std::stof(currentValue);
+        componentCount++;
+    }
+
+    cleanVec.x = vecComponents[0];
+    cleanVec.y = vecComponents[1];
+    cleanVec.z = vecComponents[2];
+
+    return cleanVec;
 }
