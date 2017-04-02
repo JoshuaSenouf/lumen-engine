@@ -9,23 +9,27 @@ cudaRenderer::cudaRenderer()
 
 void cudaRenderer::setScene()
 {
-    spheres = (SphereObject*)malloc(sizeof(SphereObject) * 1);
+    Scene testScene;
+    testScene.loadScene("res/scenes/cornellScene.txt");
 
-    sceneParser testScene;
-    std::tuple<SphereObject*, int> sceneParsing;
-    sceneParsing = testScene.loadScene("res/scenes/testScene.txt", spheres);
-
-    spheres = std::get<0>(sceneParsing);
-    sphereCount = std::get<1>(sceneParsing);
+    sphereCount = testScene.sceneSphereCount;
+    SphereObject* sceneSphere = testScene.sceneSpheres;
 
 //    for(int i = 0; i < sphereCount; i++)
 //    {
-//        std::cout << "SPHERE RADIUS : " << tempSpheres[i].radius << std::endl;
+//        std::cout << "RADIUS : " << sceneSphere[i].radius << std::endl;
+//        std::cout << "POS X : " << sceneSphere[i].position.x << " POS Y : " << sceneSphere[i].position.y << " POS Z : " << sceneSphere[i].position.z << std::endl;
+//        std::cout << "COL R : " << sceneSphere[i].color.x << " COL G : " << sceneSphere[i].color.y << " COL B: " << sceneSphere[i].color.z << std::endl;
+//        std::cout << "EMI R : " << sceneSphere[i].emissiveColor.x << " EMI G : " << sceneSphere[i].emissiveColor.y << " EMI B : " << sceneSphere[i].emissiveColor.z << std::endl;
+//        std::cout << "///////////////" << std::endl;
 //    }
+
+    checkCudaErrors(cudaMalloc(&spheres, (sphereCount) * sizeof(SphereObject)));
+    checkCudaErrors(cudaMemcpy(spheres, sceneSphere, (sphereCount) * sizeof(SphereObject), cudaMemcpyHostToDevice));
 }
 
 
-void cudaRenderer::render(int width = 800, int height = 600, int samples = 128, int bounces = 4)
+void cudaRenderer::render(int width = 800, int height = 600, int samples = 256, int bounces = 4)
 {
     setScene();
 

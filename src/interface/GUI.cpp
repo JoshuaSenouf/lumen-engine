@@ -67,7 +67,7 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
     windowGrid->addWidget(renderButton, 4, 0, 1, 2);
     windowGrid->addWidget(logText, 5, 0, 1, 2);
 
-    this->resize(500, 350);
+    this->resize(640, 480);
     this->setLayout(windowGrid);
 }
 

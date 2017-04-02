@@ -14,14 +14,17 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
         src/interface/GUI.cpp \
-    src/scene/sceneParser.cpp \
-    src/cuda/cudaRenderer.cpp
+    src/cuda/cudaRenderer.cpp \
+    src/scene/scene.cpp
 
 HEADERS += \
         src/cuda/renderKernel.h \
         src/interface/GUI.h \
-    src/scene/sceneParser.h \
-    src/cuda/cudaRenderer.h
+    src/scene/object.h \
+    src/scene/material.h \
+    src/cuda/cudaRenderer.h \
+    src/scene/scene.h
+
 
 LIBS += -lGL -lGLEW -lGLU -lglut
 
@@ -43,6 +46,7 @@ CUDA_DIR = /usr/local/cuda
 CUDA_SDK = /usr/local/cuda/samples
 
 INCLUDEPATH += $$CUDA_DIR/include
+INCLUDEPATH += $$CUDA_SDK/common/inc
 
 QMAKE_LIBDIR += $$CUDA_DIR/lib64
 LIBS += -lcudart -lcudadevrt

@@ -1,18 +1,17 @@
-#include "src/scene/sceneParser.h"
+#include "src/scene/scene.h"
 #include "src/cuda/cudaRenderer.h"
 
 
-sceneParser::sceneParser()
+Scene::Scene()
 {
-
+    std::locale::global(std::locale("en_US.UTF-8"));    // So that the "." character is used by std::stof as the separator instead of "," if you are using a french style input for example
+    sceneSpheres = (SphereObject*)malloc(sizeof(SphereObject) * 1);
 }
 
 
-std::tuple<SphereObject*, int> sceneParser::loadScene(const char* scenePath, SphereObject *spheres)
+void Scene::loadScene(const char* scenePath)
 {
     SphereObject tempSphere;
-
-    int sphereCount = 0;
 
     std::ifstream sceneReader(scenePath);
     std::string currentLine, objType, tempString;
@@ -40,19 +39,17 @@ std::tuple<SphereObject*, int> sceneParser::loadScene(const char* scenePath, Sph
             getline(iss, tempString, ';');
             tempSphere.material = static_cast<materialType>(std::stoi(tempString));
 
-            spheres[sphereCount] = tempSphere;
-            sphereCount++;
-            spheres = (SphereObject*)realloc(spheres, sizeof(SphereObject) * (sphereCount + 1));
+            sceneSpheres[sceneSphereCount] = tempSphere;
+            sceneSphereCount++;
+            sceneSpheres = (SphereObject*)realloc(sceneSpheres, sizeof(SphereObject) * (sceneSphereCount + 1));
         }
     }
 
     sceneReader.close();
-
-    return std::tuple<SphereObject*, int>(spheres, sphereCount);
 }
 
 
-std::string sceneParser::purgeString(std::string bloatedString)
+std::string Scene::purgeString(std::string bloatedString)
 {
     char badChars[] = "()";
 
@@ -65,25 +62,20 @@ std::string sceneParser::purgeString(std::string bloatedString)
 }
 
 
-float3 sceneParser::stringToFloat3(std::string vecString)
+float3 Scene::stringToFloat3(std::string vecString)
 {
     int componentCount = 0;
+    float vecComponents[2];
 
-    char vecComponents[3];
-
-    std::ifstream vecReader(vecString);
     std::string currentValue;
-    float3 cleanVec;
+    std::stringstream stream;
+    stream.str(vecString);
 
-    while(getline(vecReader, currentValue, ','))
+    while(getline(stream, currentValue, ','))
     {
         vecComponents[componentCount] = std::stof(currentValue);
         componentCount++;
     }
 
-    cleanVec.x = vecComponents[0];
-    cleanVec.y = vecComponents[1];
-    cleanVec.z = vecComponents[2];
-
-    return cleanVec;
+    return make_float3(vecComponents[0], vecComponents[1], vecComponents[2]);
 }
