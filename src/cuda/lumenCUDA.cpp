@@ -1,13 +1,13 @@
-#include "cudaRenderer.h"
+#include "lumenCUDA.h"
 
 
-cudaRenderer::cudaRenderer()
+LumenCUDA::LumenCUDA()
 {
 
 }
 
 
-void cudaRenderer::setScene()
+void LumenCUDA::setScene()
 {
     Scene testScene;
     testScene.loadScene("res/scenes/cornellScene.txt");
@@ -29,7 +29,7 @@ void cudaRenderer::setScene()
 }
 
 
-void cudaRenderer::render(int width = 800, int height = 600, int samples = 256, int bounces = 4)
+void LumenCUDA::render(int width = 800, int height = 600, int samples = 256, int bounces = 4)
 {
     setScene();
 

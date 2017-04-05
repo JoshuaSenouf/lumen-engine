@@ -5,8 +5,8 @@ LumenEngine is a C++ CUDA graphics engine that aimed to produce photorealistic i
 Screenshot
 ------
 
-* Cornell Box - 4K, 1024 samples, rendered in 60 seconds using a Nvidia GTX 970 :
-![](https://image.ibb.co/gHSrwF/lumen_Render.png)
+* Cornell Box - 4K, 1024 samples, rendered in 60-70 seconds using a Nvidia GTX 970 :
+![](https://image.ibb.co/n4yhLa/lumen_Render_SPEC.jpg)
 
 
 How to use

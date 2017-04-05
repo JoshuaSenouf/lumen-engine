@@ -10,8 +10,8 @@
 #include <cstring>
 #include <algorithm>
 
+#include "api/cuda/cutil_math.h"
 #include "src/scene/object.h"
-#include "src/cuda/cutil_math.h"
 
 
 class Scene

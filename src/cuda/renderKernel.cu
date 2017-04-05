@@ -4,15 +4,17 @@
 #include <vector_types.h>
 
 #include "device_launch_parameters.h"
-#include "cutil_math.h"
 #include "curand.h"
 #include "curand_kernel.h"
+
 #include "renderKernel.h"
+#include "api/cuda/cutil_math.h"
 #include "src/scene/object.h"
 #include "src/scene/material.h"
 
 #define PI 3.14159265359f
 #define FOV_ANGLE 0.5135f
+#define EPSILON 0.03f
 
 
 inline float clamp(float x)
@@ -117,17 +119,39 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
         float random2 = getrandom(seed1, seed2);
         float random2Square = sqrtf(random2);
 
-        float3 localOrthoW = hitFrontNormal;
-        float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
-        float3 localOrthoV = cross(localOrthoW, localOrthoU);
+        float3 nextRayDir;
 
-        // Cosine weighted Importance Sampling
-        float3 importanceSampledDirection = normalize(localOrthoU * cos(random1) * random2Square + localOrthoV * sin(random1) * random2Square + localOrthoW * sqrtf(1 - random2));
-        ray.origin = hitCoord + hitFrontNormal * 0.05f;
-        ray.direction = importanceSampledDirection;
+        // DIFFUSE
+        if (hitSphere.material == 1)
+        {
+            float3 localOrthoW = hitFrontNormal;
+            float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
+            float3 localOrthoV = cross(localOrthoW, localOrthoU);
+
+            // Cosine weighted Importance Sampling
+            nextRayDir = normalize(localOrthoU * cos(random1) * random2Square + localOrthoV * sin(random1) * random2Square + localOrthoW * sqrtf(1 - random2));
+            hitCoord += hitFrontNormal * EPSILON;
+
+            colorMask *= dot(nextRayDir, hitFrontNormal);
+        }
+
+        // (PERFECT) SPECULAR
+        else if (hitSphere.material == 2)
+        {
+            nextRayDir = ray.direction - 2.0f * hitNormal * dot(hitNormal, ray.direction);
+            hitCoord += hitFrontNormal * EPSILON;
+        }
+
+        // REFRACT
+        else if (hitSphere.material == 3)
+        {
+
+        }
+
+        ray.direction = nextRayDir;
+        ray.origin = hitCoord;
 
         colorMask *= hitSphere.color;
-        colorMask *= dot(importanceSampledDirection, hitFrontNormal);
         colorMask *= 2.0f;
     }
 
@@ -198,7 +222,7 @@ void lumenRender(int renderWidth, int renderHeight, int samples, int lightBounce
         fprintf(f, "%d %d %d ", hdrToSGRB(dataHost[i].x), hdrToSGRB(dataHost[i].y), hdrToSGRB(dataHost[i].z));
     }
 
-    printf("LOG : Render successfuly savec in lumenRender.ppm !");
+    printf("LOG : Render successfuly saved in lumenRender.ppm !");
 
     delete[] dataHost;
 

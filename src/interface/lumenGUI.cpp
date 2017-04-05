@@ -1,7 +1,7 @@
-#include "src/interface/GUI.h"
+#include "src/interface/lumenGUI.h"
 
 
-GUI::GUI(QWidget *parent) : QWidget(parent)
+LumenGUI::LumenGUI(QWidget *parent) : QWidget(parent)
 {
     //------------------------------------------------------------------------------------
     //------------------------------ Widgets declaration  --------------------------------
@@ -25,7 +25,11 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
 
     logFile = new QFile("renderLog.txt");
 
-    renderer = new cudaRenderer();
+    cudaRender = new LumenCUDA();
+
+    glFormat = new QSurfaceFormat;
+
+    glRender = new LumenGL(this);
 
     //------------------------------------------------------------------------------------
     //----------------------------- Widgets configuration  -------------------------------
@@ -45,6 +49,15 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
         logSetup << "//////////////////////\n" << endl;
         logFile->close();
     }
+
+    glFormat->setRenderableType(QSurfaceFormat::OpenGL);
+    glFormat->setProfile(QSurfaceFormat::CoreProfile);
+    glFormat->setVersion(4, 0);
+
+    glRender->setFormat(*glFormat);
+    glRender->resize(QSize(800, 600));
+    glRender->setWindowTitle("LumenEngine - CUDA/GL");
+    glRender->show();
 
     //------------------------------------------------------------------------------------
     //------------------------------ Connects declaration  -------------------------------
@@ -67,22 +80,25 @@ GUI::GUI(QWidget *parent) : QWidget(parent)
     windowGrid->addWidget(renderButton, 4, 0, 1, 2);
     windowGrid->addWidget(logText, 5, 0, 1, 2);
 
-    this->resize(640, 480);
     this->setLayout(windowGrid);
+    this->setWindowTitle("LumenEngine - GUI");
+    this->resize(640, 480);
 }
 
 
-GUI::~GUI()
+LumenGUI::~LumenGUI()
 {
 
 }
 
 
-void GUI::callCudaRender()
+void LumenGUI::callCudaRender()
 {
+    glRender->resize(QSize(widthEdit->text().toInt(), heightEdit->text().toInt()));
+
     std::freopen("renderLog.txt", "a+", stdout);
 
-    renderer->render(widthEdit->text().toInt(), heightEdit->text().toInt(), samplesEdit->text().toInt(), bouncesEdit->text().toInt());
+    cudaRender->render(widthEdit->text().toInt(), heightEdit->text().toInt(), samplesEdit->text().toInt(), bouncesEdit->text().toInt());
 
     std::fclose(stdout);
 

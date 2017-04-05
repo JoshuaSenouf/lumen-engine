@@ -1,5 +1,5 @@
 #include "src/scene/scene.h"
-#include "src/cuda/cudaRenderer.h"
+#include "src/cuda/lumenCUDA.h"
 
 
 Scene::Scene()

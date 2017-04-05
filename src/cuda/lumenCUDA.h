@@ -1,18 +1,19 @@
-#ifndef CUDARENDERER_H
-#define CUDARENDERER_H
+#ifndef LUMENCUDA_H
+#define LUMENCUDA_H
 
-#include "src/scene/object.h"
-#include "src/scene/scene.h"
-#include "src/cuda/cutil_math.h"
-#include "src/cuda/renderKernel.h"
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
 
+#include "src/scene/object.h"
+#include "src/scene/scene.h"
+#include "src/cuda/renderKernel.h"
+#include "api/cuda/cutil_math.h"
 
-class cudaRenderer
+
+class LumenCUDA
 {
     public:
-        cudaRenderer();
+        LumenCUDA();
 
         void setScene();
         void render(int width, int height, int samples, int bounces);
@@ -22,4 +23,4 @@ class cudaRenderer
         int sphereCount;
 };
 
-#endif // CUDARENDERER_H
+#endif // LUMENCUDA_H

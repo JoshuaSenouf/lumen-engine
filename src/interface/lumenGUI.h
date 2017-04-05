@@ -1,18 +1,19 @@
-#ifndef GUI_H
-#define GUI_H
+#ifndef LUMENGUI_H
+#define LUMENGUI_H
 
 #include <QtWidgets>
+#include "lumenGL.h"
 #include "src/cuda/renderKernel.h"
-#include "src/cuda/cudaRenderer.h"
+#include "src/cuda/lumenCUDA.h"
 
 
-class GUI : public QWidget
+class LumenGUI : public QWidget
 {
         Q_OBJECT
 
     public:
-        GUI(QWidget *parent = 0);
-        ~GUI();
+        LumenGUI(QWidget *parent = 0);
+        ~LumenGUI();
 
     public slots:
         void callCudaRender();
@@ -36,8 +37,12 @@ class GUI : public QWidget
 
         QFile *logFile;
 
-        cudaRenderer *renderer;
+        LumenCUDA *cudaRender;
+
+        LumenGL *glRender;
+
+        QSurfaceFormat *glFormat;
 };
 
 
-#endif // GUI_H
+#endif // LUMENGUI_H

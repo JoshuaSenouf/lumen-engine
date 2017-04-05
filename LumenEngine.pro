@@ -6,6 +6,8 @@
 
 QT += core gui opengl
 
+CONFIG += c++11
+
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
 TARGET = LumenEngine
@@ -13,17 +15,19 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-        src/interface/GUI.cpp \
-    src/cuda/cudaRenderer.cpp \
-    src/scene/scene.cpp
+    src/scene/scene.cpp \
+    src/interface/lumenGL.cpp \
+    src/interface/lumenGUI.cpp \
+    src/cuda/lumenCUDA.cpp
 
 HEADERS += \
         src/cuda/renderKernel.h \
-        src/interface/GUI.h \
     src/scene/object.h \
     src/scene/material.h \
-    src/cuda/cudaRenderer.h \
-    src/scene/scene.h
+    src/scene/scene.h \
+    src/interface/lumenGL.h \
+    src/interface/lumenGUI.h \
+    src/cuda/lumenCUDA.h
 
 
 LIBS += -lGL -lGLEW -lGLU -lglut

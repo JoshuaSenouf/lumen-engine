@@ -1,9 +1,0 @@
-# Simple scene descriptor
-# Format    : objType(;radius if Sphere);position;color;emissivecolor;materialtype;
-# Material  : DIFFUSE = 1 / SPECULAR = 2 / REFLECT = 3 
-
-
-SPHERE;1;(1,0,0);(255,0,0);(0,0,0);1;
-SPHERE;2;(0,1,0);(0,255,0);(0,0,0);2;
-SPHERE;3;(0,0,1);(0,0,255);(0,0,0);3;
-

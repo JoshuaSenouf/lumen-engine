@@ -1,5 +1,5 @@
 #include <QApplication>
-#include "src/interface/GUI.h"
+#include "src/interface/lumenGUI.h"
 
 
 int main(int argc, char *argv[])
@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setStyle("Fusion");
 
-    GUI window;
+    LumenGUI window;
     window.show();
 
     return app.exec();
