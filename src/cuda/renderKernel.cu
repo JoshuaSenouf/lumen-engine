@@ -97,14 +97,14 @@ __device__ bool checkSceneIntersect(RayObject &ray, SphereObject* spheresList, f
 
 __host__ __device__ float3 computeCosineWeightedImportanceSampling(float3 localW, float3 localU, float3 localV, float rand1, float rand2, float sqrtRand2)
 {
-    return make_float3(normalize(localU * cos(rand1) * sqrtRand2 + localV * sin(rand1) * sqrtRand2 + localW * sqrtf(1 - rand2)));
+    return normalize(localU * cos(rand1) * sqrtRand2 + localV * sin(rand1) * sqrtRand2 + localW * sqrtf(1 - rand2));
 
 }
 
 
 __host__ __device__ float3 computePerfectlyReflectedRay(float3 rayDirection, float3 intersectionNormal)
 {
-    return make_float3(rayDirection - 2.0f * intersectionNormal * dot(intersectionNormal, rayDirection));
+    return rayDirection - 2.0f * intersectionNormal * dot(intersectionNormal, rayDirection);
 }
 
 
