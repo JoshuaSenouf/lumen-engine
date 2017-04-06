@@ -95,6 +95,19 @@ __device__ bool checkSceneIntersect(RayObject &ray, SphereObject* spheresList, f
 }
 
 
+__host__ __device__ float3 computeCosineWeightedImportanceSampling(float3 localW, float3 localU, float3 localV, float rand1, float rand2, float sqrtRand2)
+{
+    return make_float3(normalize(localU * cos(rand1) * sqrtRand2 + localV * sin(rand1) * sqrtRand2 + localW * sqrtf(1 - rand2)));
+
+}
+
+
+__host__ __device__ float3 computePerfectlyReflectedRay(float3 rayDirection, float3 intersectionNormal)
+{
+    return make_float3(rayDirection - 2.0f * intersectionNormal * dot(intersectionNormal, rayDirection));
+}
+
+
 __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int lightBounces, unsigned int *seed1, unsigned int *seed2)
 {
     float3 colorAccumulation = make_float3(0.0f, 0.0f, 0.0f);
@@ -128,8 +141,8 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
             float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
             float3 localOrthoV = cross(localOrthoW, localOrthoU);
 
-            // Cosine weighted Importance Sampling
-            nextRayDir = normalize(localOrthoU * cos(random1) * random2Square + localOrthoV * sin(random1) * random2Square + localOrthoW * sqrtf(1 - random2));
+            // Cosine Weighted Importance Sampling
+            nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, random1, random2, random2Square);
             hitCoord += hitFrontNormal * EPSILON;
 
             colorMask *= dot(nextRayDir, hitFrontNormal);
@@ -138,7 +151,7 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
         // (PERFECT) SPECULAR
         else if (hitSphere.material == 2)
         {
-            nextRayDir = ray.direction - 2.0f * hitNormal * dot(hitNormal, ray.direction);
+            nextRayDir = computePerfectlyReflectedRay(ray.direction, hitNormal);
             hitCoord += hitFrontNormal * EPSILON;
         }
 
@@ -217,10 +230,13 @@ void lumenRender(int renderWidth, int renderHeight, int samples, int lightBounce
 
     FILE *f = fopen("lumenRender.ppm", "w");
     fprintf(f, "P3\n%d %d\n%d\n", renderWidth, renderHeight, 255);
+
     for (int i = 0; i < renderWidth*renderHeight; i++)
     {
         fprintf(f, "%d %d %d ", hdrToSGRB(dataHost[i].x), hdrToSGRB(dataHost[i].y), hdrToSGRB(dataHost[i].z));
     }
+
+    fclose(f);
 
     printf("LOG : Render successfuly saved in lumenRender.ppm !");
 
