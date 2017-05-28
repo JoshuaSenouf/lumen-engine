@@ -4,7 +4,7 @@ build/*
 
 # Files
 
-*.user
-*.ppm
-renderLog.txt
-
+*.user 
+*.ppm 
+imgui.ini
+CMakeLists.txt.user
