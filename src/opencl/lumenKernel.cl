@@ -28,7 +28,8 @@ typedef struct SphereObject
 } SphereObject;
 
 
-static float getrandom(unsigned int *seed1, unsigned int *seed2) /* random number function from Samuel Lapere */
+/* Random number function from Samuel Lapere */
+static float getrandom(unsigned int *seed1, unsigned int *seed2)
 {
 	*seed1 = 36969 * ((*seed1) & 65535) + ((*seed1) >> 16);
 	*seed2 = 18000 * ((*seed2) & 65535) + ((*seed2) >> 16);
@@ -47,7 +48,14 @@ static float getrandom(unsigned int *seed1, unsigned int *seed2) /* random numbe
 }
 
 
-RayObject createCamRay(const int pixelX, const int pixelY, const int width, const int height) {
+/* Convert HDR floating point value to an SRGB integer that can be read by OpenGL and saved on disk */
+inline int hdrToSGRB(float x)
+{
+	return pow(clamp(x, 0.0f, 1.0f), 1.0f / 2.2f) * 255;
+}
+
+
+RayObject getPrimaryRay(const int pixelX, const int pixelY, const int width, const int height) {
 
 	float floatX = (float)pixelX / (float)width; /* clamp pixelX from an int to a saturated float */
 	float floatY = (float)pixelY / (float)height; 
@@ -187,14 +195,16 @@ __kernel void lumenRender(__constant SphereObject* spheresList, const int render
 	unsigned int seed1 = pixelX;
 	unsigned int seed2 = pixelY;
 
-	RayObject cameraRay = createCamRay(pixelX, pixelY, renderWidth, renderHeight);
+	RayObject cameraRay = getPrimaryRay(pixelX, pixelY, renderWidth, renderHeight);
 
-	float3 pixelColor = (float3)(0.0f, 0.0f, 0.0f);
+	float3 tempColor = (float3)(0.0f, 0.0f, 0.0f);
 
 	for (int sample = 0; sample < samples; sample++)
 	{
-		pixelColor += computeRadiance(&cameraRay, spheresList, lightBounces, sphereCount, &seed1, &seed2) * (1.0f / samples);
+		tempColor += computeRadiance(&cameraRay, spheresList, lightBounces, sphereCount, &seed1, &seed2) * (1.0f / samples);
 	}
+
+	float3 pixelColor = (float3)(hdrToSGRB(tempColor.x), hdrToSGRB(tempColor.y), hdrToSGRB(tempColor.z));
 
 	renderOutput[itemID] = pixelColor;
 }

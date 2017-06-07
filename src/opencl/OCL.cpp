@@ -241,20 +241,8 @@ void OCL::clToPPM(int renderWidth, int renderHeight)
 
 	for (int i = 0; i < renderWidth * renderHeight; i++)
 	{
-		fprintf(f, "%d %d %d ", hdrToSGRB(lumenCPUOutput[i].s[0]), hdrToSGRB(lumenCPUOutput[i].s[1]), hdrToSGRB(lumenCPUOutput[i].s[2]));
+		fprintf(f, "%d %d %d ", int(lumenCPUOutput[i].s[0]), int(lumenCPUOutput[i].s[1]), int(lumenCPUOutput[i].s[2]));
 	}
 
 	fclose(f);
-}
-
-
-inline float OCL::clamp(float x)
-{
-	return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x;
-}
-
-
-inline int OCL::hdrToSGRB(float x)
-{
-	return int(pow(clamp(x), 1.0f / 2.2f) * 255);
 }

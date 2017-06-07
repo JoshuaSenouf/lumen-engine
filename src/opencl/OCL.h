@@ -38,8 +38,6 @@ class OCL
 		void setupKernel();
 		void printLog(const cl::Program& program, const cl::Device& device);
 		void clToPPM(int renderWidth, int renderHeight);
-		inline float clamp(float x);
-		inline int hdrToSGRB(float x);
 
 		const char* lumenOCLKernelSource;
 
