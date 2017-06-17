@@ -6,4 +6,5 @@ build/*
 
 *.user
 *.ppm
+imgui.ini
 
