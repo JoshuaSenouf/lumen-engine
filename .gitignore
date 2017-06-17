@@ -6,5 +6,4 @@ build/*
 
 *.user
 *.ppm
-renderLog.txt
 

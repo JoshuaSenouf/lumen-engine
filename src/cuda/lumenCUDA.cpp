@@ -10,7 +10,7 @@ LumenCUDA::LumenCUDA()
 void LumenCUDA::setScene()
 {
     Scene testScene;
-    testScene.loadScene("res/scenes/cornellScene.txt");
+    testScene.loadScene("res/scenes/cornellSceneCUDA.txt");
 
     sphereCount = testScene.sceneSphereCount;
     SphereObject* sceneSphere = testScene.sceneSpheres;
@@ -24,8 +24,8 @@ void LumenCUDA::setScene()
 //        std::cout << "///////////////" << std::endl;
 //    }
 
-    checkCudaErrors(cudaMalloc(&spheres, (sphereCount) * sizeof(SphereObject)));
-    checkCudaErrors(cudaMemcpy(spheres, sceneSphere, (sphereCount) * sizeof(SphereObject), cudaMemcpyHostToDevice));
+    cudaMalloc(&spheres, (sphereCount) * sizeof(SphereObject));
+    cudaMemcpy(spheres, sceneSphere, (sphereCount) * sizeof(SphereObject), cudaMemcpyHostToDevice);
 }
 
 

@@ -8,9 +8,9 @@
 #include "curand_kernel.h"
 
 #include "renderKernel.h"
-#include "api/cuda/cutil_math.h"
-#include "src/scene/object.h"
-#include "src/scene/material.h"
+#include "cutil_math.h"
+#include "object.h"
+#include "material.h"
 
 #define PI 3.14159265359f
 #define FOV_ANGLE 0.5135f

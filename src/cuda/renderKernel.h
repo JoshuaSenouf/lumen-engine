@@ -1,7 +1,7 @@
 #ifndef RENDERKERNEL_H
 #define RENDERKERNEL_H
 
-#include "src/scene/object.h"
+#include "object.h"
 
 
 extern "C"
