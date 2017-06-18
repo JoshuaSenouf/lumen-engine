@@ -8,9 +8,6 @@
 #include <imgui.h>
 #include <imgui_impl_glfw_gl3.h>
 
-#include "lumenCUDA.h"
-
-
 
 class GUI
 {
@@ -24,16 +21,14 @@ class GUI
 		void aboutWindow(bool* guiOpen);
 		void renderConfigWindow(bool* guiOpen);
 
+    private:
+		bool aboutBool = false;
+		bool renderBool = false;
+
 		int renderWidth = 800;
 		int renderHeight = 600;
 		int renderSamples = 128;
 		int renderBounces = 4;
-
-        LumenCUDA cudaRender;
-
-    private:
-		bool aboutBool = false;
-		bool renderBool = false;
 };
 
 #endif // GUI_H

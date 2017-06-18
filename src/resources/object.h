@@ -1,8 +1,9 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include "material.h"
 #include <cuda_runtime.h>
+
+#include "material.h"
 
 
 struct RayObject

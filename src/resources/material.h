@@ -2,7 +2,6 @@
 #define MATERIAL_H
 
 
-
 enum materialType
 {
     DIFFUSE,

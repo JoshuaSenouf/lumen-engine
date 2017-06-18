@@ -20,8 +20,8 @@ void GUI::setupGUI()
         {
             if (ImGui::MenuItem("Launch CUDA Kernel"))
             {
-                cudaRender.render(renderWidth, renderHeight, renderSamples, renderBounces);
-            }
+
+			}
 
             ImGui::Separator();
 

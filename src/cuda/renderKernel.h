@@ -5,7 +5,6 @@
 
 
 extern "C"
-void lumenRender(int width, int height, int samples, int bounces, int sphereCount, SphereObject* spheresList);
-
+void lumenRender(float3 *outputBuffer, float3 *accumBuffer, int renderWidth, int renderHeight, int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList, int frameNumber);
 
 #endif // RENDERKERNEL_H

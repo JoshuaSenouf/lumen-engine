@@ -6,26 +6,33 @@
 #include "device_launch_parameters.h"
 #include "curand.h"
 #include "curand_kernel.h"
+#include "cutil_math.h"
 
 #include "renderKernel.h"
-#include "cutil_math.h"
-#include "object.h"
 #include "material.h"
+#include "object.h"
 
 #define PI 3.14159265359f
 #define FOV_ANGLE 0.5135f
 #define EPSILON 0.03f
 
 
-inline float clamp(float x)
+union GLColor  // Allow us to convert the pixel value to one that OpenGL can read and use
+{
+	float colorValue;
+	uchar4 colorComponents;
+};
+
+
+__device__ inline float clamp(float x)
 {
     return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x;
 }
 
 
-inline int hdrToSGRB(float x)
+__device__ inline int hdrToSGRB(float x)
 {
-    return int(pow(clamp(x), 1 / 2.2) * 255);
+    return int(powf(clamp(x), 1 / 2.2) * 255);
 }
 
 
@@ -38,25 +45,6 @@ __device__ inline unsigned int WangHash(unsigned int seed)
     seed = seed ^ (seed >> 15);
 
     return seed;
-}
-
-
-__device__ static float getrandom(unsigned int *seed0, unsigned int *seed1) // random number function from Samuel Lapere
-{
-    *seed0 = 36969 * ((*seed0) & 65535) + ((*seed0) >> 16);
-    *seed1 = 18000 * ((*seed1) & 65535) + ((*seed1) >> 16);
-
-    unsigned int ires = ((*seed0) << 16) + (*seed1);
-
-    union
-    {
-            float f;
-            unsigned int ui;
-    } res;
-
-    res.ui = (ires & 0x007fffff) | 0x40000000;
-
-    return (res.f - 2.0f) / 2.0f;
 }
 
 
@@ -77,12 +65,12 @@ __device__ float checkSphereIntersect(SphereObject sphere, RayObject ray)
 }
 
 
-__device__ bool checkSceneIntersect(RayObject &ray, SphereObject* spheresList, float &closestSphereDist, int &closestSphereID)
+__device__ bool checkSceneIntersect(RayObject &ray, int sphereCount, SphereObject* spheresList, float &closestSphereDist, int &closestSphereID)
 {
     float d;
     float inf = closestSphereDist = 1e20;
 
-    for(int i = 0; i < (sizeof(spheresList) + 1); i++) // Eeewwwwwww
+    for(int i = 0; i < sphereCount; i++)
     {
         if((d = checkSphereIntersect(spheresList[i], ray)) && d < closestSphereDist)
         {
@@ -108,7 +96,7 @@ __host__ __device__ float3 computePerfectlyReflectedRay(float3 rayDirection, flo
 }
 
 
-__device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int lightBounces, unsigned int *seed1, unsigned int *seed2)
+__device__ float3 computeRadiance(RayObject &ray, int sphereCount, SphereObject* spheresList, int lightBounces, curandState *cudaRNG)
 {
     float3 colorAccumulation = make_float3(0.0f, 0.0f, 0.0f);
     float3 colorMask = make_float3(1.0f, 1.0f, 1.0f);
@@ -118,7 +106,7 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
         float closestSphereDist;
         int closestSphereID = 0;
 
-        if (!checkSceneIntersect(ray, spheresList, closestSphereDist, closestSphereID))
+        if (!checkSceneIntersect(ray, sphereCount, spheresList, closestSphereDist, closestSphereID))
             return make_float3(0.0f, 0.0f, 0.0f);
 
         const SphereObject &hitSphere = spheresList[closestSphereID];
@@ -128,8 +116,8 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
 
         colorAccumulation += colorMask * hitSphere.emissiveColor;
 
-        float random1 = 2.0f * M_PI * getrandom(seed1, seed2);
-        float random2 = getrandom(seed1, seed2);
+        float random1 = 2.0f * PI * curand_uniform(cudaRNG);
+        float random2 = curand_uniform(cudaRNG);
         float random2Square = sqrtf(random2);
 
         float3 nextRayDir;
@@ -172,15 +160,18 @@ __device__ float3 computeRadiance(RayObject &ray, SphereObject* spheresList, int
 }
 
 
-__global__ void renderDispatcher(float3 *dataHost, int renderWidth, int renderHeight, int sampleCount, int lightBounces, int sphereCount, SphereObject *spheresList)
+__global__ void renderDispatcher(float3 *dataHost, float3* accumBuffer, int renderWidth, int renderHeight,
+								int sampleCount, int lightBounces, int sphereCount, SphereObject *spheresList,
+								int frameCounter)
 {
-
     unsigned int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int pixelIndex = (renderHeight - pixelY - 1) * renderWidth + pixelX;
 
-    unsigned int seed1 = pixelX;
-    unsigned int seed2 = pixelY;
+    int threadIndex = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+
+    curandState cudaRNG;
+    curand_init(WangHash(frameCounter) + threadIndex, 0, 0, &cudaRNG); // We create a new seed using curand and our framecounter
 
     RayObject cameraRay(make_float3(50.0f, 52.0f, 295.6f), normalize(make_float3(0.0f, -0.042612f, -1.0f)));
     float3 rayOffsetX = make_float3(renderWidth * FOV_ANGLE / renderHeight, 0.0f, 0.0f);
@@ -194,53 +185,28 @@ __global__ void renderDispatcher(float3 *dataHost, int renderWidth, int renderHe
         float3 primaryRay = cameraRay.direction + rayOffsetX * ((0.25f + pixelX) / renderWidth - 0.5f) + rayOffsetY * ((0.25f + pixelY) / renderHeight - 0.5f);
         RayObject tempRay(cameraRay.origin + primaryRay * 40.0f, normalize(primaryRay));
 
-        pixelColor = pixelColor + computeRadiance(tempRay, spheresList, lightBounces, &seed1, &seed2) * (1.0f / sampleCount);
+        pixelColor = pixelColor + computeRadiance(tempRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray and the scene data
     }
 
-    dataHost[pixelIndex] = make_float3(clamp(pixelColor.x, 0.0f, 1.0f), clamp(pixelColor.y, 0.0f, 1.0f), clamp(pixelColor.z, 0.0f, 1.0f));
+	accumBuffer[pixelIndex] += pixelColor; // Add the computed color of the current pixel to the accumulation buffer
+
+    GLColor finalColor; // Convert the computed color to a format suitable for OpenGL (24-bits float, i.e. 4 bytes)
+    finalColor.colorComponents = make_uchar4((unsigned char)(hdrToSGRB(accumBuffer[pixelIndex].x / frameCounter)),
+											(unsigned char)(hdrToSGRB(accumBuffer[pixelIndex].y / frameCounter)),
+											(unsigned char)(hdrToSGRB(accumBuffer[pixelIndex].z / frameCounter)),
+											1);
+
+    dataHost[pixelIndex] = make_float3(pixelX, pixelY, finalColor.colorValue);
 }
 
 
 extern "C"
-void lumenRender(int renderWidth, int renderHeight, int samples, int lightBounces, int sphereCount, SphereObject *spheresList)
+void lumenRender(float3 *outputBuffer, float3 *accumBuffer, int renderWidth, int renderHeight,
+				int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList,
+				int frameCounter)
 {
-    printf("RENDER CONFIG :\n\n"
-           "Width = %d\n"
-           "Height = %d\n"
-           "Samples = %d\n"
-           "Bounces = %d\n"
-           "Sphere count : %d\n\n", renderWidth, renderHeight, samples, lightBounces, sphereCount);
+    dim3 cudaThreadsBlock(16, 16, 1);
+    dim3 cudaBlocksGrid(renderWidth / cudaThreadsBlock.x, renderHeight / cudaThreadsBlock.y, 1);
 
-    float3* dataHost = new float3[renderWidth * renderHeight];
-    float3* dataDevice;
-
-    cudaMalloc(&dataDevice, renderWidth * renderHeight * sizeof(float3));
-
-    dim3 cudaThreadsBlock(8, 8);
-    dim3 cudaBlocksGrid(renderWidth / cudaThreadsBlock.x, renderHeight / cudaThreadsBlock.y);
-
-    printf("LOG : CUDA is ready !\n");
-
-    renderDispatcher <<< cudaBlocksGrid, cudaThreadsBlock >>>(dataDevice,renderWidth, renderHeight, samples, lightBounces, sphereCount, spheresList);
-
-    cudaMemcpy(dataHost, dataDevice, renderWidth * renderHeight * sizeof(float3), cudaMemcpyDeviceToHost);
-    cudaFree(dataDevice);
-
-    printf("LOG : Render done !\n");
-
-    FILE *f = fopen("lumenRender.ppm", "w");
-    fprintf(f, "P3\n%d %d\n%d\n", renderWidth, renderHeight, 255);
-
-    for (int i = 0; i < renderWidth*renderHeight; i++)
-    {
-        fprintf(f, "%d %d %d ", hdrToSGRB(dataHost[i].x), hdrToSGRB(dataHost[i].y), hdrToSGRB(dataHost[i].z));
-    }
-
-    fclose(f);
-
-    printf("LOG : Render successfuly saved in lumenRender.ppm !");
-
-    delete[] dataHost;
-
-    printf("\n\n//////////////////////\n\n");
+    renderDispatcher <<< cudaBlocksGrid, cudaThreadsBlock >>>(outputBuffer, accumBuffer, renderWidth, renderHeight, renderSample, renderBounces, sphereCount, spheresList, frameCounter);
 }

@@ -4,9 +4,12 @@ project(LumenEngine)
 option(GLFW_BUILD_DOCS OFF)
 option(GLFW_BUILD_EXAMPLES OFF)
 option(GLFW_BUILD_TESTS OFF)
+
 add_subdirectory(api/glfw)
 
-set(GLAD_LIBRARIES dl)
+if(NOT WIN32)
+	set(GLAD_LIBRARIES dl)
+endif()
 
 include_directories(src/renderer/
                     src/resources/
@@ -55,7 +58,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CUDA_NVCC_FLAGS
     ${CUDA_NVCC_FLAGS};
-    -std=c++11 -O3 -gencode arch=compute_52,code=sm_52 --compiler-options -fno-strict-aliasing --ptxas-options=-v -maxrregcount 20 --use_fast_math)
+    --std=c++11 -gencode arch=compute_52,code=sm_52 --compiler-options -fno-strict-aliasing --ptxas-options=-v -maxrregcount 20 --use_fast_math)
 
 cuda_add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                     ${PROJECT_SHADERS} ${PROJECT_CONFIGS}

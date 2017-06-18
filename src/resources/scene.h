@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "cutil_math.h"
+
 #include "object.h"
 
 
@@ -23,8 +24,12 @@ class Scene
         std::string purgeString(std::string  bloatedString);
         float3 stringToFloat3(std::string vecString);
 
-        SphereObject* sceneSpheres;
-        int sceneSphereCount = 0;
+		int getSphereCount();
+		SphereObject* getSceneSpheresList();
+
+	private:
+		int sceneSphereCount = 0;
+        SphereObject* sceneSpheresList;
 };
 
 #endif // SCENEPARSER_H

@@ -20,7 +20,7 @@ Thanks to Linh Hah for additions and fixes.
 #ifndef CUTIL_MATH_H
 #define CUTIL_MATH_H
 
-#include </usr/local/cuda/include/cuda_runtime.h>
+#include <cuda_runtime.h>
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
