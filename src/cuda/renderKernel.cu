@@ -6,6 +6,7 @@
 #include "device_launch_parameters.h"
 #include "curand.h"
 #include "curand_kernel.h"
+#include "thrust\iterator\zip_iterator.h"
 #include "cutil_math.h"
 
 #include "renderKernel.h"
@@ -15,6 +16,9 @@
 #define PI 3.14159265359f
 #define FOV_ANGLE 0.5135f
 #define EPSILON 0.03f
+#define LIGHT_INTENSITY 2.0f
+#define METAL_EXPO 30.0f
+#define GLOSSY_LEVEL 0.1f
 
 
 union GLColor  // Allow us to convert the pixel value to one that OpenGL can read and use
@@ -83,16 +87,52 @@ __device__ bool checkSceneIntersect(RayObject &ray, int sphereCount, SphereObjec
 }
 
 
-__host__ __device__ float3 computeCosineWeightedImportanceSampling(float3 localW, float3 localU, float3 localV, float rand1, float rand2, float sqrtRand2)
+__device__ float3 computeCosineWeightedImportanceSampling(float3 localW, float3 localU, float3 localV, float rand1, float rand2, float cosT)
 {
-    return normalize(localU * cos(rand1) * sqrtRand2 + localV * sin(rand1) * sqrtRand2 + localW * sqrtf(1 - rand2));
+    return normalize(localU * cos(rand1) * rand2 + localV * sin(rand1) * rand2 + localW * cosT);
 
 }
 
 
-__host__ __device__ float3 computePerfectlyReflectedRay(float3 rayDirection, float3 intersectionNormal)
+__device__ float3 computePerfectlyReflectedRay(float3 rayDirection, float3 intersectionNormal)
 {
     return rayDirection - 2.0f * intersectionNormal * dot(intersectionNormal, rayDirection);
+}
+
+
+__device__ thrust::tuple<float3, float3> computeDiffuseMaterial(float3 hitOrientedNormal, float3 hitCoord, float rand1, float rand2, float cosT)
+{
+	float3 localOrthoW = hitOrientedNormal;
+	float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
+	float3 localOrthoV = cross(localOrthoW, localOrthoU);
+
+	// Cosine Weighted Importance Sampling
+	float3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, rand2, cosT);
+	hitCoord += hitOrientedNormal * EPSILON;
+
+	return thrust::make_tuple(nextRayDir, hitCoord);
+}
+
+
+__device__ thrust::tuple<float3, float3> computePerfectSpecularMaterial(float3 rayDir, float3 hitCoord, float3 hitNormal, float3 hitOrientedNormal)
+{
+	float3 nextRayDir = computePerfectlyReflectedRay(rayDir, hitNormal);
+	hitCoord += hitOrientedNormal * EPSILON;
+
+	return thrust::make_tuple(nextRayDir, hitCoord);
+}
+
+
+__device__ thrust::tuple<float3, float3> computePhongMetalMaterial(float3 rayDir, float3 hitCoord, float3 hitNormal, float rand1, float sinT, float cosT)
+{
+	float3 localOrthoW = normalize(rayDir - hitNormal * 2.0f * dot(hitNormal, rayDir));
+	float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
+	float3 localOrthoV = cross(localOrthoW, localOrthoU);
+
+	float3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, sinT, cosT);
+	hitCoord += localOrthoW * EPSILON;
+
+	return thrust::make_tuple(nextRayDir, hitCoord);
 }
 
 
@@ -112,48 +152,85 @@ __device__ float3 computeRadiance(RayObject &ray, int sphereCount, SphereObject*
         const SphereObject &hitSphere = spheresList[closestSphereID];
         float3 hitCoord = ray.origin + ray.direction * closestSphereDist;
         float3 hitNormal = normalize(hitCoord - hitSphere.position);
-        float3 hitFrontNormal = dot(hitNormal, ray.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
+        float3 hitOrientedNormal = dot(hitNormal, ray.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
 
         colorAccumulation += colorMask * hitSphere.emissiveColor;
-
-        float random1 = 2.0f * PI * curand_uniform(cudaRNG);
-        float random2 = curand_uniform(cudaRNG);
-        float random2Square = sqrtf(random2);
 
         float3 nextRayDir;
 
         // DIFFUSE
         if (hitSphere.material == 1)
         {
-            float3 localOrthoW = hitFrontNormal;
-            float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
-            float3 localOrthoV = cross(localOrthoW, localOrthoU);
+			float random1 = 2.0f * PI * curand_uniform(cudaRNG);
+			float random2 = curand_uniform(cudaRNG);
+			float random2Square = sqrtf(random2);
+			float cosT = sqrtf(1.0f - random2);
 
-            // Cosine Weighted Importance Sampling
-            nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, random1, random2, random2Square);
-            hitCoord += hitFrontNormal * EPSILON;
+			thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, random1, random2Square, cosT);
 
-            colorMask *= dot(nextRayDir, hitFrontNormal);
+            colorMask *= dot(nextRayDir, hitOrientedNormal);
+			colorMask *= hitSphere.color;
         }
 
         // (PERFECT) SPECULAR
         else if (hitSphere.material == 2)
         {
-            nextRayDir = computePerfectlyReflectedRay(ray.direction, hitNormal);
-            hitCoord += hitFrontNormal * EPSILON;
+			thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(ray.direction, hitCoord, hitNormal, hitOrientedNormal);
+
+			colorMask *= hitSphere.color;
         }
 
-        // REFRACT
-        else if (hitSphere.material == 3)
+		// REFRACT
+		else if (hitSphere.material == 3)
+		{
+
+		}
+
+        // METAL (PHONG)
+        else if (hitSphere.material == 4)
         {
+			float random1 = 2.0f * PI * curand_uniform(cudaRNG);
+			float random2 = curand_uniform(cudaRNG);
+			float cosTMetal = powf(1.0f - random2, 1.0f / (METAL_EXPO + 1.0f));
+			float sinTMetal = sqrtf(1.0f - cosTMetal * cosTMetal);
 
+			thrust::tie(nextRayDir, hitCoord) = computePhongMetalMaterial(ray.direction, hitCoord, hitNormal, random1, sinTMetal, cosTMetal);
+
+			colorMask *= hitSphere.color;
         }
+
+		// GLOSSY/COAT (from Peter Kurtz path tracer, not physically accurate but nice to have anyway)
+		else if (hitSphere.material == 5)
+		{
+			float random1 = curand_uniform(cudaRNG);
+			bool materialSpecular = (random1 < GLOSSY_LEVEL);
+
+			// We simply choose between computing a perfect specular or a diffuse material depending of the random value when compared to a certain threshold of glossiness
+			if (materialSpecular)
+			{
+				thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(ray.direction, hitCoord, hitNormal, hitOrientedNormal);
+
+				colorMask *= hitSphere.color;
+			}
+
+			else
+			{
+				float random1 = 2.0f * PI * curand_uniform(cudaRNG);
+				float random2 = curand_uniform(cudaRNG);
+				float random2Square = sqrtf(random2);
+				float cosT = sqrtf(1.0f - random2);
+
+				thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, random1, random2Square, cosT);
+
+				colorMask *= dot(nextRayDir, hitOrientedNormal);
+				colorMask *= hitSphere.color;
+			}
+		}
+
+		colorMask *= LIGHT_INTENSITY;
 
         ray.direction = nextRayDir;
         ray.origin = hitCoord;
-
-        colorMask *= hitSphere.color;
-        colorMask *= 2.0f;
     }
 
     return colorAccumulation;
@@ -185,7 +262,7 @@ __global__ void renderDispatcher(float3 *dataHost, float3* accumBuffer, int rend
         float3 primaryRay = cameraRay.direction + rayOffsetX * ((0.25f + pixelX) / renderWidth - 0.5f) + rayOffsetY * ((0.25f + pixelY) / renderHeight - 0.5f);
         RayObject tempRay(cameraRay.origin + primaryRay * 40.0f, normalize(primaryRay));
 
-        pixelColor = pixelColor + computeRadiance(tempRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray and the scene data
+        pixelColor += computeRadiance(tempRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray and the scene data
     }
 
 	accumBuffer[pixelIndex] += pixelColor; // Add the computed color of the current pixel to the accumulation buffer

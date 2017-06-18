@@ -11,9 +11,9 @@ Screenshot
 
 How to use
 ------
-GLEngine was written using Linux, QtCreator as the IDE, CMake as the building tool, OpenCL 1.x and CUDA 7.x/Compute Capabilities 5.2 (can be probably lowered to 3.2 if your hardware is not recent enough) as the GPGPU APIs, and a C++11 compiler in mind.
+GLEngine was written using Windows/Linux, VS2015/QtCreator as the IDE, CMake as the building tool, CUDA 7.x/Compute Capabilities 5.2 (can be probably lowered to 3.2 if your hardware is not recent enough) and OpenCL 1.x as the GPGPU APIs, and a C++11 compiler in mind.
 
-Download the source, open the CMakeLists.txt file with QtCreator, build the project, and everything should be ready to use.
+Download the source, build the project structure using CMake 3.x, open the project using your favorite IDE (tested on VS2015/QtCreator), build the project, and everything should be ready to use.
 
 Dependencies
 ------
@@ -21,4 +21,4 @@ Dependencies
 - GUI system : dear imgui
 - OpenGL Function Loader : GLAD
 - OpenGL Mathematic Functions : GLM
-- GPGPU : OpenCL 1.x/CUDA 7.x
+- GPGPU : CUDA 7.x/OpenCL 1.x
