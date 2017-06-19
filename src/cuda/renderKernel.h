@@ -5,6 +5,7 @@
 
 
 extern "C"
-void lumenRender(float3 *outputBuffer, float3 *accumBuffer, int renderWidth, int renderHeight, int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList, int frameNumber);
+void lumenRender(glm::vec3 *outputBuffer, glm::vec3 *accumBuffer, int renderWidth, int renderHeight, int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList, int frameNumber);
+
 
 #endif // RENDERKERNEL_H

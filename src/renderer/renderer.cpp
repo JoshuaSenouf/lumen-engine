@@ -32,6 +32,9 @@ int Renderer::runRenderer()
 	initCUDAData();
 
     ImGui_ImplGlfwGL3_Init(window, true);
+
+	glfwSetKeyCallback(window, keyboardCallback);
+
 	lumenGUI.setRenderResolution(renderWidth, renderHeight);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -89,7 +92,7 @@ void Renderer::initCUDAData()
 {
 	initCUDAScene(); // Set up the selected scene and allocate the needed data for CUDA in memory
 
-	cudaMalloc(&accumulationBuffer, renderWidth * renderHeight * sizeof(float3)); // Set memory for the Accumulation Buffer
+	cudaMalloc(&accumulationBuffer, renderWidth * renderHeight * sizeof(glm::vec3)); // Set memory for the Accumulation Buffer
 
 	initRenderVBO(&renderVBO, &cudaGRBuffer, cudaGraphicsRegisterFlagsNone); // Create the OpenGL VBO that will be used to store the result from CUDA so that we can display it
 
@@ -116,7 +119,7 @@ void Renderer::initRenderVBO(GLuint* renderVBO, cudaGraphicsResource **cudaGRBuf
     glGenBuffers(1, renderVBO);
     glBindBuffer(GL_ARRAY_BUFFER, *renderVBO);
 
-    unsigned int vboSize = renderWidth * renderHeight * sizeof(float3);
+    unsigned int vboSize = renderWidth * renderHeight * sizeof(glm::vec3);
     glBufferData(GL_ARRAY_BUFFER, vboSize, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -178,4 +181,19 @@ void Renderer::displayGLBuffer() // Currently using the old OpenGL pipeline, sho
 	glEnableClientState(GL_COLOR_ARRAY);
 	glDrawArrays(GL_POINTS, 0, renderWidth * renderHeight);
 	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+
+void Renderer::keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);
+
+	if (key >= 0 && key < 1024)
+	{
+		if (action == GLFW_PRESS)
+			glfwInput[key] = true;
+		else if (action == GLFW_RELEASE)
+			glfwInput[key] = false;
+	}
 }

@@ -7,7 +7,10 @@
 #include "curand.h"
 #include "curand_kernel.h"
 #include "thrust\iterator\zip_iterator.h"
-#include "cutil_math.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "renderKernel.h"
 #include "material.h"
@@ -54,7 +57,7 @@ __device__ inline unsigned int WangHash(unsigned int seed)
 
 __device__ float checkSphereIntersect(SphereObject sphere, RayObject ray)
 {
-    float3 op = sphere.position - ray.origin;
+	glm::vec3 op = sphere.position - ray.origin;
     float t, eps = 1e-4;
     float b = dot(op, ray.direction);
 
@@ -87,59 +90,59 @@ __device__ bool checkSceneIntersect(RayObject &ray, int sphereCount, SphereObjec
 }
 
 
-__device__ float3 computeCosineWeightedImportanceSampling(float3 localW, float3 localU, float3 localV, float rand1, float rand2, float cosT)
+__device__ glm::vec3 computeCosineWeightedImportanceSampling(glm::vec3 localW, glm::vec3 localU, glm::vec3 localV, float rand1, float rand2, float cosT)
 {
     return normalize(localU * cos(rand1) * rand2 + localV * sin(rand1) * rand2 + localW * cosT);
 
 }
 
 
-__device__ float3 computePerfectlyReflectedRay(float3 rayDirection, float3 intersectionNormal)
+__device__ glm::vec3 computePerfectlyReflectedRay(glm::vec3 rayDirection, glm::vec3 intersectionNormal)
 {
     return rayDirection - 2.0f * intersectionNormal * dot(intersectionNormal, rayDirection);
 }
 
 
-__device__ thrust::tuple<float3, float3> computeDiffuseMaterial(float3 hitOrientedNormal, float3 hitCoord, float rand1, float rand2, float cosT)
+__device__ thrust::tuple<glm::vec3, glm::vec3> computeDiffuseMaterial(glm::vec3 hitOrientedNormal, glm::vec3 hitCoord, float rand1, float rand2, float cosT)
 {
-	float3 localOrthoW = hitOrientedNormal;
-	float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
-	float3 localOrthoV = cross(localOrthoW, localOrthoU);
+	glm::vec3 localOrthoW = hitOrientedNormal;
+	glm::vec3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f)), localOrthoW));
+	glm::vec3 localOrthoV = cross(localOrthoW, localOrthoU);
 
 	// Cosine Weighted Importance Sampling
-	float3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, rand2, cosT);
+	glm::vec3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, rand2, cosT);
 	hitCoord += hitOrientedNormal * EPSILON;
 
 	return thrust::make_tuple(nextRayDir, hitCoord);
 }
 
 
-__device__ thrust::tuple<float3, float3> computePerfectSpecularMaterial(float3 rayDir, float3 hitCoord, float3 hitNormal, float3 hitOrientedNormal)
+__device__ thrust::tuple<glm::vec3, glm::vec3> computePerfectSpecularMaterial(glm::vec3 rayDir, glm::vec3 hitCoord, glm::vec3 hitNormal, glm::vec3 hitOrientedNormal)
 {
-	float3 nextRayDir = computePerfectlyReflectedRay(rayDir, hitNormal);
+	glm::vec3 nextRayDir = computePerfectlyReflectedRay(rayDir, hitNormal);
 	hitCoord += hitOrientedNormal * EPSILON;
 
 	return thrust::make_tuple(nextRayDir, hitCoord);
 }
 
 
-__device__ thrust::tuple<float3, float3> computePhongMetalMaterial(float3 rayDir, float3 hitCoord, float3 hitNormal, float rand1, float sinT, float cosT)
+__device__ thrust::tuple<glm::vec3, glm::vec3> computePhongMetalMaterial(glm::vec3 rayDir, glm::vec3 hitCoord, glm::vec3 hitNormal, float rand1, float sinT, float cosT)
 {
-	float3 localOrthoW = normalize(rayDir - hitNormal * 2.0f * dot(hitNormal, rayDir));
-	float3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f)), localOrthoW));
-	float3 localOrthoV = cross(localOrthoW, localOrthoU);
+	glm::vec3 localOrthoW = normalize(rayDir - hitNormal * 2.0f * dot(hitNormal, rayDir));
+	glm::vec3 localOrthoU = normalize(cross((fabs(localOrthoW.x) > 0.1f ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f)), localOrthoW));
+	glm::vec3 localOrthoV = cross(localOrthoW, localOrthoU);
 
-	float3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, sinT, cosT);
+	glm::vec3 nextRayDir = computeCosineWeightedImportanceSampling(localOrthoW, localOrthoU, localOrthoV, rand1, sinT, cosT);
 	hitCoord += localOrthoW * EPSILON;
 
 	return thrust::make_tuple(nextRayDir, hitCoord);
 }
 
 
-__device__ float3 computeRadiance(RayObject &ray, int sphereCount, SphereObject* spheresList, int lightBounces, curandState *cudaRNG)
+__device__ glm::vec3 computeRadiance(RayObject &ray, int sphereCount, SphereObject* spheresList, int lightBounces, curandState *cudaRNG)
 {
-    float3 colorAccumulation = make_float3(0.0f, 0.0f, 0.0f);
-    float3 colorMask = make_float3(1.0f, 1.0f, 1.0f);
+    glm::vec3 colorAccumulation = glm::vec3(0.0f);
+    glm::vec3 colorMask = glm::vec3(1.0f);
 
     for (int bounces = 0; bounces < lightBounces; bounces++)
     {
@@ -147,16 +150,16 @@ __device__ float3 computeRadiance(RayObject &ray, int sphereCount, SphereObject*
         int closestSphereID = 0;
 
         if (!checkSceneIntersect(ray, sphereCount, spheresList, closestSphereDist, closestSphereID))
-            return make_float3(0.0f, 0.0f, 0.0f);
+            return glm::vec3(0.0f);
 
         const SphereObject &hitSphere = spheresList[closestSphereID];
-        float3 hitCoord = ray.origin + ray.direction * closestSphereDist;
-        float3 hitNormal = normalize(hitCoord - hitSphere.position);
-        float3 hitOrientedNormal = dot(hitNormal, ray.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
+        glm::vec3 hitCoord = ray.origin + ray.direction * closestSphereDist;
+        glm::vec3 hitNormal = normalize(hitCoord - hitSphere.position);
+        glm::vec3 hitOrientedNormal = dot(hitNormal, ray.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
 
         colorAccumulation += colorMask * hitSphere.emissiveColor;
 
-        float3 nextRayDir;
+        glm::vec3 nextRayDir;
 
         // DIFFUSE
         if (hitSphere.material == 1)
@@ -237,7 +240,7 @@ __device__ float3 computeRadiance(RayObject &ray, int sphereCount, SphereObject*
 }
 
 
-__global__ void renderDispatcher(float3 *dataHost, float3* accumBuffer, int renderWidth, int renderHeight,
+__global__ void renderDispatcher(glm::vec3 *dataHost, glm::vec3* accumBuffer, int renderWidth, int renderHeight,
 								int sampleCount, int lightBounces, int sphereCount, SphereObject *spheresList,
 								int frameCounter)
 {
@@ -250,16 +253,16 @@ __global__ void renderDispatcher(float3 *dataHost, float3* accumBuffer, int rend
     curandState cudaRNG;
     curand_init(WangHash(frameCounter) + threadIndex, 0, 0, &cudaRNG); // We create a new seed using curand and our framecounter
 
-    RayObject cameraRay(make_float3(50.0f, 52.0f, 295.6f), normalize(make_float3(0.0f, -0.042612f, -1.0f)));
-    float3 rayOffsetX = make_float3(renderWidth * FOV_ANGLE / renderHeight, 0.0f, 0.0f);
-    float3 rayOffsetY = normalize(cross(rayOffsetX, cameraRay.direction)) * FOV_ANGLE;
+    RayObject cameraRay(glm::vec3(50.0f, 52.0f, 295.6f), normalize(glm::vec3(0.0f, -0.042612f, -1.0f)));
+	glm::vec3 rayOffsetX = glm::vec3(renderWidth * FOV_ANGLE / renderHeight, 0.0f, 0.0f);
+	glm::vec3 rayOffsetY = normalize(cross(rayOffsetX, cameraRay.direction)) * FOV_ANGLE;
 
-    float3 pixelColor;
-    pixelColor = make_float3(0.0f);
+	glm::vec3 pixelColor;
+    pixelColor = glm::vec3(0.0f);
 
     for (int sample = 0; sample < sampleCount; sample++)
     {
-        float3 primaryRay = cameraRay.direction + rayOffsetX * ((0.25f + pixelX) / renderWidth - 0.5f) + rayOffsetY * ((0.25f + pixelY) / renderHeight - 0.5f);
+		glm::vec3 primaryRay = cameraRay.direction + rayOffsetX * ((0.25f + pixelX) / renderWidth - 0.5f) + rayOffsetY * ((0.25f + pixelY) / renderHeight - 0.5f);
         RayObject tempRay(cameraRay.origin + primaryRay * 40.0f, normalize(primaryRay));
 
         pixelColor += computeRadiance(tempRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray and the scene data
@@ -273,16 +276,16 @@ __global__ void renderDispatcher(float3 *dataHost, float3* accumBuffer, int rend
 											(unsigned char)(hdrToSGRB(accumBuffer[pixelIndex].z / frameCounter)),
 											1);
 
-    dataHost[pixelIndex] = make_float3(pixelX, pixelY, finalColor.colorValue);
+    dataHost[pixelIndex] = glm::vec3(pixelX, pixelY, finalColor.colorValue);
 }
 
 
 extern "C"
-void lumenRender(float3 *outputBuffer, float3 *accumBuffer, int renderWidth, int renderHeight,
+void lumenRender(glm::vec3 *outputBuffer, glm::vec3 *accumBuffer, int renderWidth, int renderHeight,
 				int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList,
 				int frameCounter)
 {
-    dim3 cudaThreadsBlock(16, 16, 1);
+    dim3 cudaThreadsBlock(8, 8, 1);
     dim3 cudaBlocksGrid(renderWidth / cudaThreadsBlock.x, renderHeight / cudaThreadsBlock.y, 1);
 
     renderDispatcher <<< cudaBlocksGrid, cudaThreadsBlock >>>(outputBuffer, accumBuffer, renderWidth, renderHeight, renderSample, renderBounces, sphereCount, spheresList, frameCounter);

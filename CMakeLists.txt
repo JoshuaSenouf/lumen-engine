@@ -18,19 +18,20 @@ include_directories(src/renderer/
                     api/glfw/include/
                     api/glm/
                     api/stb/
-                    api/imgui/
-                    api/cuda/)
+                    api/imgui/)
 
 file(GLOB API_SOURCES api/glad/src/glad.c
                       api/imgui/*.cpp)
 
 file(GLOB PROJECT_HEADERS src/renderer/*.h
                           src/resources/*.h
+                          src/camera/*.h
                           src/cuda/*.h)
 
 file(GLOB PROJECT_SOURCES src/*.cpp
                           src/renderer/*.cpp
                           src/resources/*.cpp
+                          src/camera/*.cpp
                           src/cuda/*.cpp
                           src/cuda/*.cu)
 

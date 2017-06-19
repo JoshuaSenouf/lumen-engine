@@ -10,7 +10,11 @@
 #include <cstring>
 #include <algorithm>
 
-#include "cutil_math.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <cuda_runtime.h>
 
 #include "object.h"
 
@@ -22,7 +26,7 @@ class Scene
 
         void loadScene(const char* scenePath);
         std::string purgeString(std::string  bloatedString);
-        float3 stringToFloat3(std::string vecString);
+		glm::vec3 stringToFloat3(std::string vecString);
 
 		int getSphereCount();
 		SphereObject* getSceneSpheresList();

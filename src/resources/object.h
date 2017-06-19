@@ -1,32 +1,34 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include <cuda_runtime.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "material.h"
 
 
 struct RayObject
 {
-        float3 origin;
-        float3 direction;
+		glm::vec3 origin;
+		glm::vec3 direction;
 
-        __device__ RayObject(float3 tempOrigin, float3 tempDirection) : origin(tempOrigin), direction(tempDirection)
-        {
+		__device__ RayObject(glm::vec3 tempOrigin, glm::vec3 tempDirection) : origin(tempOrigin), direction(tempDirection)
+		{
 
-        }
+		}
 };
 
 
 struct SphereObject
 {
-        float radius;
+		float radius;
 
-        float3 position;
-        float3 color;
-        float3 emissiveColor;
+		glm::vec3 position;
+		glm::vec3 color;
+		glm::vec3 emissiveColor;
 
-        materialType material;
+		materialType material;
 };
 
 
