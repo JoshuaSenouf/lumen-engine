@@ -12,12 +12,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "math_helper.h"
 #include "renderKernel.h"
 #include "material.h"
 #include "object.h"
 
-#define PI 3.14159265359f
-#define FOV_ANGLE 0.5135f
+
 #define EPSILON 0.03f
 #define LIGHT_INTENSITY 2.0f
 #define METAL_EXPO 30.0f
@@ -52,6 +52,44 @@ __device__ inline unsigned int WangHash(unsigned int seed)
     seed = seed ^ (seed >> 15);
 
     return seed;
+}
+
+
+__device__ RayObject getCameraRay(unsigned int posX, unsigned int posY, CameraInfo cameraInfo, curandState *cudaRNG) // Inspired a lot by Peter Kutz's path tracer
+{
+	glm::vec3 horizontalAxis = normalize(cross(cameraInfo.cameraFront, cameraInfo.cameraUp));
+	glm::vec3 verticalAxis = normalize(cross(horizontalAxis, cameraInfo.cameraFront));
+
+	glm::vec3 middle = cameraInfo.cameraPosition + cameraInfo.cameraFront;
+	glm::vec3 horizontal = horizontalAxis * tanf(cameraInfo.cameraFOV.x * 0.5f * (M_PI / 180));
+	glm::vec3 vertical = verticalAxis * tanf(cameraInfo.cameraFOV.y * -0.5f * (M_PI / 180));
+
+	float rayJitterX = ((curand_uniform(cudaRNG) - 0.5f) + posX) / (cameraInfo.cameraResolution.x - 1.0f);
+	float rayJitterY = ((curand_uniform(cudaRNG) - 0.5f) + posY) / (cameraInfo.cameraResolution.y - 1.0f);
+
+	glm::vec3 cameraPointOnPlane = cameraInfo.cameraPosition
+								+ ((middle
+								+ (horizontal * ((2.0f * rayJitterX) - 1.0f))
+								+ (vertical * ((2.0f * rayJitterY) - 1.0f))
+								- cameraInfo.cameraPosition)
+								* cameraInfo.cameraFocalDistance);
+
+	glm::vec3 cameraAperturePoint = cameraInfo.cameraPosition;
+
+	if (cameraInfo.cameraApertureRadius > 0.0f)
+	{
+		float randomizedAngle = 2.0f * M_PI * curand_uniform(cudaRNG);
+		float randomizedRadius = cameraInfo.cameraApertureRadius * sqrt(curand_uniform(cudaRNG));
+		float apertureX = cosf(randomizedAngle) * randomizedRadius;
+		float apertureY = sinf(randomizedAngle) * randomizedRadius;
+
+		cameraAperturePoint = cameraInfo.cameraPosition + (horizontalAxis * apertureX) + (verticalAxis * apertureY);
+	}
+
+	glm::vec3 rayOrigin = cameraAperturePoint;
+	glm::vec3 rayDirection = normalize(cameraPointOnPlane - cameraAperturePoint);
+
+	return RayObject(rayOrigin, rayDirection);
 }
 
 
@@ -139,7 +177,7 @@ __device__ thrust::tuple<glm::vec3, glm::vec3> computePhongMetalMaterial(glm::ve
 }
 
 
-__device__ glm::vec3 computeRadiance(RayObject &ray, int sphereCount, SphereObject* spheresList, int lightBounces, curandState *cudaRNG)
+__device__ glm::vec3 computeRadiance(RayObject &cameraRay, int sphereCount, SphereObject* spheresList, int lightBounces, curandState *cudaRNG)
 {
     glm::vec3 colorAccumulation = glm::vec3(0.0f);
     glm::vec3 colorMask = glm::vec3(1.0f);
@@ -149,39 +187,39 @@ __device__ glm::vec3 computeRadiance(RayObject &ray, int sphereCount, SphereObje
         float closestSphereDist;
         int closestSphereID = 0;
 
-        if (!checkSceneIntersect(ray, sphereCount, spheresList, closestSphereDist, closestSphereID))
-            return glm::vec3(0.0f);
+        if (!checkSceneIntersect(cameraRay, sphereCount, spheresList, closestSphereDist, closestSphereID))
+			return colorAccumulation += colorMask * glm::vec3(0.70f, 0.8f, 0.8f); // If we hit no object, we return the sky color
 
-        const SphereObject &hitSphere = spheresList[closestSphereID];
-        glm::vec3 hitCoord = ray.origin + ray.direction * closestSphereDist;
-        glm::vec3 hitNormal = normalize(hitCoord - hitSphere.position);
-        glm::vec3 hitOrientedNormal = dot(hitNormal, ray.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
+		const SphereObject &hitSphere = spheresList[closestSphereID];
+		glm::vec3 hitCoord = cameraRay.origin + cameraRay.direction * closestSphereDist;
+		glm::vec3 hitNormal = normalize(hitCoord - hitSphere.position);
+		glm::vec3 hitOrientedNormal = dot(hitNormal, cameraRay.direction) < 0.0f ? hitNormal : hitNormal * -1.0f;
 
-        colorAccumulation += colorMask * hitSphere.emissiveColor;
+		colorAccumulation += colorMask * hitSphere.emissiveColor;
 
-        glm::vec3 nextRayDir;
+		glm::vec3 nextRayDir;
 
-        // DIFFUSE
-        if (hitSphere.material == 1)
-        {
-			float random1 = 2.0f * PI * curand_uniform(cudaRNG);
-			float random2 = curand_uniform(cudaRNG);
-			float random2Square = sqrtf(random2);
-			float cosT = sqrtf(1.0f - random2);
+		// DIFFUSE
+		if (hitSphere.material == 1)
+		{
+			float curand1 = 2.0f * M_PI * curand_uniform(cudaRNG);
+			float curand2 = curand_uniform(cudaRNG);
+			float curand2Square = sqrtf(curand2);
+			float cosT = sqrtf(1.0f - curand2);
 
-			thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, random1, random2Square, cosT);
+			thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, curand1, curand2Square, cosT);
 
-            colorMask *= dot(nextRayDir, hitOrientedNormal);
+			colorMask *= dot(nextRayDir, hitOrientedNormal);
 			colorMask *= hitSphere.color;
-        }
+		}
 
-        // (PERFECT) SPECULAR
-        else if (hitSphere.material == 2)
-        {
-			thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(ray.direction, hitCoord, hitNormal, hitOrientedNormal);
+		// (PERFECT) SPECULAR
+		else if (hitSphere.material == 2)
+		{
+			thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(cameraRay.direction, hitCoord, hitNormal, hitOrientedNormal);
 
 			colorMask *= hitSphere.color;
-        }
+		}
 
 		// REFRACT
 		else if (hitSphere.material == 3)
@@ -189,51 +227,51 @@ __device__ glm::vec3 computeRadiance(RayObject &ray, int sphereCount, SphereObje
 
 		}
 
-        // METAL (PHONG)
-        else if (hitSphere.material == 4)
-        {
-			float random1 = 2.0f * PI * curand_uniform(cudaRNG);
-			float random2 = curand_uniform(cudaRNG);
-			float cosTMetal = powf(1.0f - random2, 1.0f / (METAL_EXPO + 1.0f));
+		// METAL (PHONG)
+		else if (hitSphere.material == 4)
+		{
+			float curand1 = 2.0f * M_PI * curand_uniform(cudaRNG);
+			float curand2 = curand_uniform(cudaRNG);
+			float cosTMetal = powf(1.0f - curand2, 1.0f / (METAL_EXPO + 1.0f));
 			float sinTMetal = sqrtf(1.0f - cosTMetal * cosTMetal);
 
-			thrust::tie(nextRayDir, hitCoord) = computePhongMetalMaterial(ray.direction, hitCoord, hitNormal, random1, sinTMetal, cosTMetal);
+			thrust::tie(nextRayDir, hitCoord) = computePhongMetalMaterial(cameraRay.direction, hitCoord, hitNormal, curand1, sinTMetal, cosTMetal);
 
 			colorMask *= hitSphere.color;
-        }
+		}
 
 		// GLOSSY/COAT (from Peter Kurtz path tracer, not physically accurate but nice to have anyway)
 		else if (hitSphere.material == 5)
 		{
-			float random1 = curand_uniform(cudaRNG);
-			bool materialSpecular = (random1 < GLOSSY_LEVEL);
+			float curand1 = curand_uniform(cudaRNG);
+			bool materialSpecular = (curand1 < GLOSSY_LEVEL);
 
 			// We simply choose between computing a perfect specular or a diffuse material depending of the random value when compared to a certain threshold of glossiness
 			if (materialSpecular)
 			{
-				thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(ray.direction, hitCoord, hitNormal, hitOrientedNormal);
+				thrust::tie(nextRayDir, hitCoord) = computePerfectSpecularMaterial(cameraRay.direction, hitCoord, hitNormal, hitOrientedNormal);
 
 				colorMask *= hitSphere.color;
 			}
 
 			else
 			{
-				float random1 = 2.0f * PI * curand_uniform(cudaRNG);
-				float random2 = curand_uniform(cudaRNG);
-				float random2Square = sqrtf(random2);
-				float cosT = sqrtf(1.0f - random2);
+				float curand1 = 2.0f * M_PI * curand_uniform(cudaRNG);
+				float curand2 = curand_uniform(cudaRNG);
+				float curand2Square = sqrtf(curand2);
+				float cosT = sqrtf(1.0f - curand2);
 
-				thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, random1, random2Square, cosT);
+				thrust::tie(nextRayDir, hitCoord) = computeDiffuseMaterial(hitOrientedNormal, hitCoord, curand1, curand2Square, cosT);
 
 				colorMask *= dot(nextRayDir, hitOrientedNormal);
 				colorMask *= hitSphere.color;
 			}
 		}
 
-		colorMask *= LIGHT_INTENSITY;
+		//colorMask *= LIGHT_INTENSITY;
 
-        ray.direction = nextRayDir;
-        ray.origin = hitCoord;
+		cameraRay.direction = nextRayDir;
+		cameraRay.origin = hitCoord;
     }
 
     return colorAccumulation;
@@ -242,30 +280,27 @@ __device__ glm::vec3 computeRadiance(RayObject &ray, int sphereCount, SphereObje
 
 __global__ void renderDispatcher(glm::vec3 *dataHost, glm::vec3* accumBuffer, int renderWidth, int renderHeight,
 								int sampleCount, int lightBounces, int sphereCount, SphereObject *spheresList,
-								int frameCounter)
+								int frameCounter, CameraInfo* cameraInfo)
 {
     unsigned int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int pixelIndex = (renderHeight - pixelY - 1) * renderWidth + pixelX;
+	unsigned int posX = pixelX;
+	unsigned int posY = renderHeight - pixelY - 1;
 
     int threadIndex = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
 
     curandState cudaRNG;
-    curand_init(WangHash(frameCounter) + threadIndex, 0, 0, &cudaRNG); // We create a new seed using curand and our framecounter
-
-    RayObject cameraRay(glm::vec3(50.0f, 52.0f, 295.6f), normalize(glm::vec3(0.0f, -0.042612f, -1.0f)));
-	glm::vec3 rayOffsetX = glm::vec3(renderWidth * FOV_ANGLE / renderHeight, 0.0f, 0.0f);
-	glm::vec3 rayOffsetY = normalize(cross(rayOffsetX, cameraRay.direction)) * FOV_ANGLE;
+    curand_init(WangHash(frameCounter) + threadIndex, 0, 0, &cudaRNG); // We create a new seed using curand and our hashed framecounter
 
 	glm::vec3 pixelColor;
     pixelColor = glm::vec3(0.0f);
 
     for (int sample = 0; sample < sampleCount; sample++)
     {
-		glm::vec3 primaryRay = cameraRay.direction + rayOffsetX * ((0.25f + pixelX) / renderWidth - 0.5f) + rayOffsetY * ((0.25f + pixelY) / renderHeight - 0.5f);
-        RayObject tempRay(cameraRay.origin + primaryRay * 40.0f, normalize(primaryRay));
+		RayObject cameraRay = getCameraRay(posX, posY, *cameraInfo, &cudaRNG);
 
-        pixelColor += computeRadiance(tempRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray and the scene data
+		pixelColor += computeRadiance(cameraRay, sphereCount, spheresList, lightBounces, &cudaRNG) * (1.0f / sampleCount); // We compute the current pixel color given a ray from the camera and the scene data
     }
 
 	accumBuffer[pixelIndex] += pixelColor; // Add the computed color of the current pixel to the accumulation buffer
@@ -283,10 +318,10 @@ __global__ void renderDispatcher(glm::vec3 *dataHost, glm::vec3* accumBuffer, in
 extern "C"
 void lumenRender(glm::vec3 *outputBuffer, glm::vec3 *accumBuffer, int renderWidth, int renderHeight,
 				int renderSample, int renderBounces, int sphereCount, SphereObject* spheresList,
-				int frameCounter)
+				int frameCounter, CameraInfo* cameraInfo)
 {
     dim3 cudaThreadsBlock(8, 8, 1);
     dim3 cudaBlocksGrid(renderWidth / cudaThreadsBlock.x, renderHeight / cudaThreadsBlock.y, 1);
 
-    renderDispatcher <<< cudaBlocksGrid, cudaThreadsBlock >>>(outputBuffer, accumBuffer, renderWidth, renderHeight, renderSample, renderBounces, sphereCount, spheresList, frameCounter);
+    renderDispatcher <<< cudaBlocksGrid, cudaThreadsBlock >>>(outputBuffer, accumBuffer, renderWidth, renderHeight, renderSample, renderBounces, sphereCount, spheresList, frameCounter, cameraInfo);
 }

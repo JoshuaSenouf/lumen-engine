@@ -16,10 +16,8 @@
 
 #include "renderKernel.h"
 #include "gui.h"
+#include "camera.h"
 #include "scene.h"
-
-
-static bool glfwInput[1024];
 
 
 class Renderer
@@ -33,37 +31,47 @@ class Renderer
 		void cleanRenderVBO(GLuint* renderVBO, cudaGraphicsResource* cudaGRBuffer);
 		void initCUDAScene();
 		void cleanCUDAScene();
+		void resetRender();
 		void displayGLBuffer();
 
-		static void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
+		void keyboardCallback(ImGuiIO* guiIO);
+		void mouseCallback(ImGuiIO* guiIO, float mousePosX, float mousePosY);
 
 	private:
 		bool firstMouse = true;
 		bool guiIsOpen = true;
-		bool cameraMode = false;
+		bool renderReset = false;
 
 		int frameCounter = 0;
 		int sphereCount;
 
-        GLuint renderWidth = 800;
-        GLuint renderHeight = 600;
-		GLuint renderSamples = 8;
+        GLuint renderWidth = 1280;
+        GLuint renderHeight = 720;
+		GLuint renderSamples = 4;
 		GLuint renderBounces = 4;
 		GLuint renderVBO;
 
 		GLfloat deltaTime = 0.0f;
 		GLfloat lastFrame = 0.0f;
-
-		SphereObject* spheresList;
+		GLfloat lastPosX = renderWidth / 2;
+		GLfloat lastPosY = renderHeight / 2;
 
 		glm::vec3* outputBuffer;
 		glm::vec3* accumulationBuffer;
+
+		SphereObject* spheresList;
 
         cudaGraphicsResource* cudaGRBuffer;
 
         cudaStream_t cudaDataStream;
 
+		GLFWwindow* window;
+
 		GUI lumenGUI;
+
+		Camera cudaCamera;
+		CameraInfo* cudaCameraInfo;
 };
+
 
 #endif // RENDERER_H

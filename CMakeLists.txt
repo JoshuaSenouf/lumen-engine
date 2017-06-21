@@ -13,6 +13,7 @@ endif()
 
 include_directories(src/renderer/
                     src/resources/
+                    src/camera/
                     src/cuda/
                     api/glad/include/
                     api/glfw/include/

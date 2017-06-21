@@ -16,7 +16,7 @@ int Renderer::runRenderer()
 //    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(renderWidth, renderHeight, "LumenEngine", nullptr, nullptr);
+    window = glfwCreateWindow(renderWidth, renderHeight, "LumenEngine", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -29,11 +29,13 @@ int Renderer::runRenderer()
     glMatrixMode(GL_PROJECTION);
     glOrtho(0.0, renderWidth, 0.0, renderHeight, 1.0, -1.0);
 
+
+	cudaCamera.setCamera(glm::vec2(renderWidth, renderHeight));
+
+	initCUDAScene();
 	initCUDAData();
 
     ImGui_ImplGlfwGL3_Init(window, true);
-
-	glfwSetKeyCallback(window, keyboardCallback);
 
 	lumenGUI.setRenderResolution(renderWidth, renderHeight);
 
@@ -51,16 +53,30 @@ int Renderer::runRenderer()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //--------------
-        // GUI setting
+        // GUI setting & callbacks
         //--------------
         lumenGUI.setupGUI();
+
+		ImGuiIO& io = ImGui::GetIO();
+		ImVec2 currentMousePos = ImGui::GetMousePos();
+
+		keyboardCallback(&io); // Currently checking this at every frame, need to find a way to see if an actual key has been pressed, just like GLFW KeyCallback
+
+		if (lastPosX !=  currentMousePos.x || lastPosY != currentMousePos.y)
+			mouseCallback(&io, currentMousePos.x, currentMousePos.y);
+
+		//--------------
+		// CUDA Rendering
+		//--------------
+		if (renderReset) // If anything in camera or scene data has changed, we flush the CUDA data and reinit them again
+			resetRender();
 
         frameCounter++;
 
         cudaStreamCreate(&cudaDataStream); // Ensure data synchronization with the CUDA device
         cudaGraphicsMapResources(1, &cudaGRBuffer, cudaDataStream); // Map the graphics resource (indirectly our VBO) to CUDA so that the kernel can use it
 
-        lumenRender(outputBuffer, accumulationBuffer, renderWidth, renderHeight, renderSamples, renderBounces, sphereCount, spheresList, frameCounter); // Send the needed the CPU data to the CUDA kernel
+        lumenRender(outputBuffer, accumulationBuffer, renderWidth, renderHeight, renderSamples, renderBounces, sphereCount, spheresList, frameCounter, cudaCameraInfo); // Send the needed the CPU data to the CUDA kernel
 
         cudaGraphicsUnmapResources(1, &cudaGRBuffer, 0); // Unmap the graphics resource so that OpenGL can use them
         cudaStreamDestroy(cudaDataStream);
@@ -90,9 +106,10 @@ int Renderer::runRenderer()
 
 void Renderer::initCUDAData()
 {
-	initCUDAScene(); // Set up the selected scene and allocate the needed data for CUDA in memory
-
 	cudaMalloc(&accumulationBuffer, renderWidth * renderHeight * sizeof(glm::vec3)); // Set memory for the Accumulation Buffer
+
+	cudaMalloc(&cudaCameraInfo, sizeof(CameraInfo));
+	cudaMemcpy(cudaCameraInfo, cudaCamera.getCameraInfo(), sizeof(CameraInfo), cudaMemcpyHostToDevice);
 
 	initRenderVBO(&renderVBO, &cudaGRBuffer, cudaGraphicsRegisterFlagsNone); // Create the OpenGL VBO that will be used to store the result from CUDA so that we can display it
 
@@ -111,6 +128,7 @@ void Renderer::cleanCUDAData()
 {
 	cleanRenderVBO(&renderVBO, cudaGRBuffer);
 	cudaFree(accumulationBuffer);
+	cudaFree(cudaCameraInfo);
 }
 
 
@@ -141,7 +159,7 @@ void Renderer::cleanRenderVBO(GLuint* renderVBO, cudaGraphicsResource* cudaGRBuf
 void Renderer::initCUDAScene()
 {
     Scene testScene;
-    testScene.loadScene("res/scenes/cornellSceneCUDA.txt");
+    testScene.loadScene("res/scenes/testScene.txt");
 
     sphereCount = testScene.getSphereCount();
     SphereObject* sceneSpheres = testScene.getSceneSpheresList();
@@ -171,6 +189,16 @@ void Renderer::cleanCUDAScene()
 }
 
 
+void Renderer::resetRender()
+{
+	cleanCUDAData();
+	frameCounter = 0;
+	initCUDAData();
+
+	renderReset = false;
+}
+
+
 void Renderer::displayGLBuffer() // Currently using the old OpenGL pipeline, should switch to using actual VAO/VBOs and a shader in order to render to a framebuffer and display the result
 {
 	glBindBuffer(GL_ARRAY_BUFFER, renderVBO);
@@ -184,16 +212,78 @@ void Renderer::displayGLBuffer() // Currently using the old OpenGL pipeline, sho
 }
 
 
-void Renderer::keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
+void Renderer::keyboardCallback(ImGuiIO* guiIO)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	if (guiIO->KeysDown[GLFW_KEY_ESCAPE])
 		glfwSetWindowShouldClose(window, GL_TRUE);
 
-	if (key >= 0 && key < 1024)
+	if (guiIO->KeysDown[GLFW_KEY_W])
 	{
-		if (action == GLFW_PRESS)
-			glfwInput[key] = true;
-		else if (action == GLFW_RELEASE)
-			glfwInput[key] = false;
+		cudaCamera.keyboardCall(FORWARD, deltaTime);
+		renderReset = true;
+	}
+
+	if (guiIO->KeysDown[GLFW_KEY_S])
+	{
+		cudaCamera.keyboardCall(BACKWARD, deltaTime);
+		renderReset = true;
+	}
+
+	if (guiIO->KeysDown[GLFW_KEY_A])
+	{
+		cudaCamera.keyboardCall(LEFT, deltaTime);
+		renderReset = true;
+	}
+
+	if (guiIO->KeysDown[GLFW_KEY_D])
+	{
+		cudaCamera.keyboardCall(RIGHT, deltaTime);
+		renderReset = true;
+	}
+
+	if (guiIO->KeysDown[GLFW_KEY_KP_ADD])
+	{
+		if (guiIO->KeysDown[GLFW_KEY_LEFT_CONTROL])
+			cudaCamera.setCameraFocalDistance(cudaCamera.getCameraFocalDistance() + 0.1f);
+		else
+			cudaCamera.setCameraApertureRadius(cudaCamera.getCameraApertureRadius() + 0.005f);
+
+		renderReset = true;
+	}
+
+	if (guiIO->KeysDown[GLFW_KEY_KP_SUBTRACT])
+	{
+		if (guiIO->KeysDown[GLFW_KEY_LEFT_CONTROL])
+			cudaCamera.setCameraFocalDistance(cudaCamera.getCameraFocalDistance() - 0.1f);
+		else
+			cudaCamera.setCameraApertureRadius(cudaCamera.getCameraApertureRadius() - 0.005f);
+
+		renderReset = true;
+	}
+}
+
+
+void Renderer::mouseCallback(ImGuiIO* guiIO, float mousePosX, float mousePosY)
+{
+	if (firstMouse)
+	{
+		lastPosX = mousePosX;
+		lastPosY = mousePosY;
+		firstMouse = false;
+	}
+
+	float offsetX = mousePosX - lastPosX;
+	float offsetY = mousePosY - lastPosY;
+
+	lastPosX = mousePosX;
+	lastPosY = mousePosY;
+
+	if (guiIO->MouseDown[GLFW_MOUSE_BUTTON_RIGHT])
+	{
+		if (offsetX != 0 || offsetY != 0)
+		{
+			cudaCamera.mouseCall(offsetX, offsetY, true);
+			renderReset = true;
+		}
 	}
 }
