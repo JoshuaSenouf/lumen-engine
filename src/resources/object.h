@@ -10,25 +10,25 @@
 
 struct RayObject
 {
-		glm::vec3 origin;
-		glm::vec3 direction;
+        glm::vec3 origin;
+        glm::vec3 direction;
 
-		__device__ RayObject(glm::vec3 tempOrigin, glm::vec3 tempDirection) : origin(tempOrigin), direction(tempDirection)
-		{
+        __device__ RayObject(glm::vec3 tempOrigin, glm::vec3 tempDirection) : origin(tempOrigin), direction(tempDirection)
+        {
 
-		}
+        }
 };
 
 
 struct SphereObject
 {
-		float radius;
+        float radius;
 
-		glm::vec3 position;
-		glm::vec3 color;
-		glm::vec3 emissiveColor;
+        glm::vec3 position;
+        glm::vec3 color;
+        glm::vec3 emissiveColor;
 
-		materialType material;
+        materialType material;
 };
 
 

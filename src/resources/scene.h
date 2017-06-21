@@ -26,13 +26,13 @@ class Scene
 
         void loadScene(const char* scenePath);
         std::string purgeString(std::string  bloatedString);
-		glm::vec3 stringToFloat3(std::string vecString);
+        glm::vec3 stringToFloat3(std::string vecString);
 
-		int getSphereCount();
-		SphereObject* getSceneSpheresList();
+        int getSphereCount();
+        SphereObject* getSceneSpheresList();
 
-	private:
-		int sceneSphereCount = 0;
+    private:
+        int sceneSphereCount = 0;
         SphereObject* sceneSpheresList;
 };
 

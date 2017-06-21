@@ -3,7 +3,7 @@
 
 GUI::GUI()
 {
-	
+    
 }
 
 
@@ -21,7 +21,7 @@ void GUI::setupGUI()
             if (ImGui::MenuItem("Launch CUDA Kernel"))
             {
 
-			}
+            }
 
             ImGui::Separator();
 
@@ -56,8 +56,8 @@ void GUI::stopGUI()
 
 void GUI::setRenderResolution(int width, int height)
 {
-	renderWidth = width;
-	renderHeight = height;
+    renderWidth = width;
+    renderHeight = height;
 }
 
 

@@ -19,7 +19,7 @@ void Scene::loadScene(const char* scenePath)
     {
         if(!currentLine.empty() && !(currentLine[0] == '#'))
         {
-			sceneSpheresList = (SphereObject*)realloc(sceneSpheresList, sizeof(SphereObject) * (sceneSphereCount + 1));
+            sceneSpheresList = (SphereObject*)realloc(sceneSpheresList, sizeof(SphereObject) * (sceneSphereCount + 1));
 
             std::stringstream iss(currentLine);
 
@@ -40,8 +40,8 @@ void Scene::loadScene(const char* scenePath)
             getline(iss, tempString, ';');
             tempSphere.material = static_cast<materialType>(std::stoi(tempString));
 
-			sceneSpheresList[sceneSphereCount] = tempSphere;
-			sceneSphereCount++;
+            sceneSpheresList[sceneSphereCount] = tempSphere;
+            sceneSphereCount++;
         }
     }
 
@@ -83,10 +83,10 @@ glm::vec3 Scene::stringToFloat3(std::string vecString)
 
 int Scene::getSphereCount()
 {
-	return sceneSphereCount;
+    return sceneSphereCount;
 }
 
 SphereObject* Scene::getSceneSpheresList()
 {
-	return sceneSpheresList;
+    return sceneSpheresList;
 }

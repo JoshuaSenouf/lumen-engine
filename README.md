@@ -3,11 +3,21 @@ LumenEngine
 
 LumenEngine is a C++ CUDA graphics engine that aimed to produce photorealistic images using Path Tracing techniques on GPU.
 
-Screenshot
+Screenshots
 ------
 
-* Scene rendered at 720p, 8 samples, 4 bounces, in about 30 seconds using progressive rendering on a Nvidia GTX 970 :
-![](https://image.ibb.co/egmKsk/lumenlowlight2.png)
+* Cornell :
+
+![](https://image.ibb.co/nGCnCk/lumen_Cornell1.png)
+
+* Depth of Field :
+
+![](https://image.ibb.co/kvzZsk/lumen_Dof1.png)
+
+* Low light :
+
+![](https://image.ibb.co/fanb55/lumenlowlight1.png)
+
 
 Features
 ------
@@ -19,7 +29,7 @@ Features
 * Camera :
     * Movements
 	* Subpixel jitter antialiasing
-	* Depth of Field
+	* Depth of Field (using aperture radius and focal distance)
 
 * Material :
 	* Perfect diffuse
