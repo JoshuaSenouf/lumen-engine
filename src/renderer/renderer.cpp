@@ -32,8 +32,8 @@ int Renderer::runRenderer()
 
     cudaCamera.setCamera(glm::vec2(renderWidth, renderHeight));
 
-    initCUDAScene();
-    initCUDAData();
+    initCUDAScene(); // We prepare all the data related to the scene itself and alloc everything into CUDA memory
+    initCUDAData(); // We initialize all the data related to different buffers needed by CUDA in order to render our scene
 
     ImGui_ImplGlfwGL3_Init(window, true);
 

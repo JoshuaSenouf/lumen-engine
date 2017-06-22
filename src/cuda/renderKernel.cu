@@ -190,6 +190,7 @@ __device__ glm::vec3 computeRadiance(RayObject &cameraRay, int sphereCount, Sphe
         if (!checkSceneIntersect(cameraRay, sphereCount, spheresList, closestSphereDist, closestSphereID))
             return colorAccumulation += colorMask * glm::vec3(0.7f, 0.8f, 0.8f); // If we hit no object, we return the sky color
 
+		// If we do intersected something, we continue to material computation
         const SphereObject &hitSphere = spheresList[closestSphereID];
         glm::vec3 hitCoord = cameraRay.origin + cameraRay.direction * closestSphereDist;
         glm::vec3 hitNormal = normalize(hitCoord - hitSphere.position);

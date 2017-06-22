@@ -6,7 +6,9 @@ enum materialType
 {
     DIFFUSE,
     SPECULAR,
-    REFRACT
+    REFRACT,
+    METAL,
+    GLOSSY
 };
 
 
