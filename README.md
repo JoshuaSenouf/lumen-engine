@@ -61,6 +61,11 @@ GLEngine was written using Windows/Linux, VS2015/QtCreator as the IDE, CMake as 
 
 Download the source, build the project structure using CMake 3.x, open the project using your favorite IDE (tested on VS2015/QtCreator), build the project, and everything should be ready to use.
 
+* In LumenEngine :
+    * Hold the right mouse button to use the camera
+    * Use the "+" and "-" buttons on the keypad control the aperture radius
+    * Hold LeftCtrl and "+" or "-" to control the focal distance
+
 Dependencies
 ------
 
